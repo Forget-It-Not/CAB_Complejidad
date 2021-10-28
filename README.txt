@@ -1,5 +1,5 @@
 
-How to use Networld
+Instructions:
 -------------------
 
 Networld.m is the main program: It reproduces the process of interaction for  specific conditions. The conditions are given by the parameters:
