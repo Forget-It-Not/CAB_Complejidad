@@ -57,13 +57,17 @@ Table_Unique= array2table(Table_Unique, 'VariableNames',{'T_step','N','Lambda1',
 
 
 toc
+if not(isfolder("Data"))
+    mkdir("Data")
+end
 cd('Data')
-E = exist(Folder_Name, 'dir');
-if  E ~=7 
+
+if not(isfolder(Folder_Name))
     mkdir(Folder_Name)
 end
+
 cd(Folder_Name);
-File_Name = [Data_Name,'.mat'];
+File_Name = strcat(Data_Name,".mat");
 save(File_Name,'Networks_Unique','Networks_Time','Table_Time','Table_Unique',...
     'Beta','N','T_Max')
 cd ..
