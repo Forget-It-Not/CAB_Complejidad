@@ -9,9 +9,9 @@ For more information about how NetWorld works, see the attached Supporting Infor
 # Main Programme (NetWorld.m):
 
  Reproduces the proccess of networks interaction for specific conditions. The conditions are given by the parameters:
- - **N**: Numerber of initial nodes.
+ - **N**: Number of initial nodes.
 
- - **Beta**: Enviormental parameter.
+ - **Beta**: Enviromental parameter.
 
  - **T_max**: Max time steps allowed
 
@@ -31,9 +31,9 @@ For more information about how NetWorld works, see the attached Supporting Infor
 
  - **Table_Unique**: Matrix with the same information as Table_Time, but only with unique (without repetition) networks.
 
- - **Networks_Time**: Set of networks associated with Table_Time, i.e, the row i of Table_Time contains the measures of Networks_Time{i}.
+ - **Networks_Time**: Set of networks associated with Table_Time, i.e,  row i of Table_Time contains the measures of Networks_Time{i}.
 
- - **Networks_Unique**: Set of networks associated with Table_Unique, i.e, the row i of Table_Unique contains the measures of Networks_Time{i}.
+ - **Networks_Unique**: Set of networks associated with Table_Unique, i.e,  row i of Table_Unique contains the measures of Networks_Time{i}.
 
 
  ## Example:
