@@ -11,7 +11,7 @@ For more information about how NetWorld works, see the attached Supporting Infor
  Reproduces the proccess of networks interaction for specific conditions. The conditions are given by the parameters:
  - **N**: Number of initial nodes.
 
- - **Beta**: Enviromental parameter.
+ - **Beta**: Enviromental parameter. (Multiple Betas can be selected, beta = 0:0.1:3)
 
  - **T_max**: Max time steps allowed
 
@@ -19,7 +19,7 @@ For more information about how NetWorld works, see the attached Supporting Infor
 
 
  ## Input:
-  - **Name**: String (File name where the output data is storaged)
+  - **Name**: String (Folder name where the output data will be storaged)
 
 
  ## Output:
@@ -35,11 +35,13 @@ For more information about how NetWorld works, see the attached Supporting Infor
 
  - **Networks_Unique**: Set of networks associated with Table_Unique, i.e,  row i of Table_Unique contains the measures of Networks_Time{i}.
 
-
  ## Example:
  ``` matlab
  Networld("Example")
  ```
+
+The output is saved as Mat-File located in the directory "./Data/Example".
+
 
  # More Parameters:
 
