@@ -46,8 +46,6 @@ end
 for i=1:length(beta)
 Beta = beta(i);    
 tic
-Folder_Name = ['Data','_N',num2str(N),'_Beta_',num2str(Beta),'_TMax',num2str(T_Max)];
-
 Networks = Main_Process(N,Beta, T_Max); %Networks from the process
 
 [Table_Time,Table_Unique,Networks_Time, Networks_Unique]= Measures_Time(Networks); %Computing the measures for each network
@@ -55,19 +53,17 @@ Networks = Main_Process(N,Beta, T_Max); %Networks from the process
 Table_Time= array2table(Table_Time, 'VariableNames',{'T_step','N','Lambda1','Lambda2','Mu','GrMedio','Entropia','NumRep'});
 Table_Unique= array2table(Table_Unique, 'VariableNames',{'T_step','N','Lambda1','Lambda2','Mu','GrMedio','Entropia','NumRep'});    
 
-
 toc
 if not(isfolder("Data"))
     mkdir("Data")
 end
 cd('Data')
-
-if not(isfolder(Folder_Name))
-    mkdir(Folder_Name)
+if not(isfolder(Data_Name))
+    mkdir(Data_Name)
 end
 
-cd(Folder_Name);
-File_Name = strcat(Data_Name,".mat");
+cd(Data_Name);
+File_Name = strcat('N',num2str(N),'_Beta_',num2str(Beta),'_TMax',num2str(T_Max),".mat");
 save(File_Name,'Networks_Unique','Networks_Time','Table_Time','Table_Unique',...
     'Beta','N','T_Max')
 cd ..
