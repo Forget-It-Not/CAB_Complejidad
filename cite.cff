@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Miguel"
+  given-names: "García-Sánchez"
+  orcid: "https://orcid.org/0000-0001-6517-7817"
+title: "NetWorld"
+version: 1.0
+doi: 10.5281/zenodo.6794438
+date-released: 2022-07-04
+url: "https://github.com/MiguelGarciaSanchez/NetWorld"
