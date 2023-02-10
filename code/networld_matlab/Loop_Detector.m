@@ -4,7 +4,7 @@ function loop = Loop_Detector(R)
 % two networks. To detect a loop we use R the matrix with the centralities
 % of each node. For each link that is accepted in the union we update the
 % matrix R, with the new centralities of the new networks. A loop is
-% detected if a row is repeted for times in the matrix R.
+% detected if a row is repeted four times in the matrix R.
 
 %Input:
 %   R: Matrix with centrailities of the nodes
