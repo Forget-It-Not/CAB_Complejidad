@@ -1,5 +1,5 @@
 
-function mu = MP_Compute_Mu(network)
+function mu = AUX_Compute_Mu(network)
 %% Computes the minimum nonzero eigenvalue of the Laplacian matrix
 % Input: A matrix
 % Output: mu

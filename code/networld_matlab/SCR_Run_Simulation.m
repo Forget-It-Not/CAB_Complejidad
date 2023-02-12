@@ -1,79 +1,54 @@
-function SCR_Run_Simulation(Data_Name)
+%% Model Variables
+ nrep=5; N = 20; T_Max = 1000; beta = 0:0.5:0.5;
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Main program: Uses the rest of the functions to compute the finale data.
-    % The programa repits the process starting with N nodes, Beta (beta factor)
-    % and T_Max (Max. allowed steps)
+%% Output Directory
+output_path = '/home/kiaran/Desktop/Ciencia_de_Datos/TFM/project/CAB_Complejidad/data/';
+code_path = pwd;
 
-    %Input vars:
-    %   Data_Name: Name which will recieve the file with the output data
+%% Random seed
+% stream = RandStream('mt19937ar','seed',sum(100*clock));
+% RandStream.setDefaultStream(stream);
 
-    %Output:
-    % Files containing:
-    %   Beta
-    %   N: Number of initial nodes
-    %   T_Max: Maximum number of time steps allowed
-
-    %   Table_Time: Matrix (each row correspond to a network and each column
-    %   correspond to a measures)
-
-    %   Table_Unique: Matrix with the same information as Table_Time but only
-    %   with unique (with out repetion) networks
-
-    %   Networks_Time: Set of networks corresponding to Table_Time, i.e, row i
-    %   of Table_Time contains the measures of Networks_Time{i}
-
-    %   Networks_Unique: Set of networks corresponding to Table_Unique, i.e, row i
-    %   of Table_Unique contains the measures of Networks_Time{i}
-
-    % The output files are saved inside the "Data" Folder.
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    %% Variables
-    N = 10; T_Max = 10000; beta = 0:0.1:3;
-
-    %% Create output directory if it doesnt exist
-    E = exist('Data', 'dir');
-
-    if E ~= 7
-        mkdir('Data')
-    end
-
-    %%M%% Random seed
-    % stream = RandStream('mt19937ar','seed',sum(100*clock));
-    % RandStream.setDefaultStream(stream);
-
-    %% Main Loop
-    for i = 1:length(beta)
+%% Run Simulation
+for i = 1:length(beta)
+    for j = 1:nrep
         Beta = beta(i);
-        %%M%% Start timing execution
+        %%M%% tic ... toc: time execution
         tic
-        Networks = MP_Networld(N, Beta, T_Max); %Networks from the process
-
-        [Table_Time, Table_Unique, Networks_Time, Networks_Unique] = Measures_Time(Networks); %Computing the measures for each network
-
+        Networks = MP_Networld(N, Beta, T_Max);
+        disp 'MP_Networld Execution'
+        toc 
+    
+        tic
+        [Table_Time, Table_Unique, Networks_Time, Networks_Unique] = AUX_Measures_Time(Networks); %Computing the measures for each network
         Table_Time = array2table(Table_Time, 'VariableNames', {'T_step', 'N', 'Lambda1', 'Lambda2', 'Mu', 'GrMedio', 'Entropia', 'NumRep'});
         Table_Unique = array2table(Table_Unique, 'VariableNames', {'T_step', 'N', 'Lambda1', 'Lambda2', 'Mu', 'GrMedio', 'Entropia', 'NumRep'});
-
-        %%M%% End and report execution time
-        toc
-
-        if not(isfolder("Data"))
-            mkdir("Data")
-        end
-
-        cd('Data')
-
-        if not(isfolder(Data_Name))
-            mkdir(Data_Name)
-        end
-
-        cd(Data_Name);
-        File_Name = strcat('N', num2str(N), '_Beta_', num2str(Beta), '_TMax', num2str(T_Max), ".mat");
+        disp 'Auxiliary data processing'
+        toc 
+    
+        cd(output_path)
+    
+        File_Name = strcat('N', num2str(N), '_Beta', num2str(Beta), '_TMax', num2str(T_Max), '_Rep', num2str(j), ".mat");
         save(File_Name, 'Networks_Unique', 'Networks_Time', 'Table_Time', 'Table_Unique', ...
             'Beta', 'N', 'T_Max')
-        cd ..
-        cd ..
+        
+        cd(code_path)
     end
-
 end
+
+output_files = dir(fullfile(output_path, '*.mat'));
+
+%% Figure 2H
+num_configs = []
+beta = []
+for i = 1:length(output_files)
+    file = strcat(output_path, output_files(i).name);
+    disp file
+    load(file)
+    num_configs(end+1) = max(size(Networks_Unique))
+    beta(end+1) = Beta
+end
+scatter(beta, num_configs)
+set(gca, 'YScale', 'log')
+
+

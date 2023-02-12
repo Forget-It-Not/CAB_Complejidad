@@ -3,16 +3,17 @@ function [L_new] = MP_Network_Partition(L, beta)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%Partition_Step:  Programm that correspond with the Partion Process, It
-%tries the partition of every network
+% MP_Network_Partition:  
+%   Programm that correspond with the Partion Process, It
+%   tries the partition of every network
 
 % Input:
-% Networks: Set {} of networks
-% beta: Enviromental- Temperature parameter. Associated with the
-% probrability of partition of a specific network p= 2*exp(-beta*mu)/(1+exp(-beta*mu));
-% For beta=inf uncomment line
+%   L: Set {} of networks
+%   beta: Enviromental- Temperature parameter. Associated with the
+%   probrability of partition of a specific network p= 2*exp(-beta*mu)/(1+exp(-beta*mu));
+%   For beta=inf uncomment line
 % Output:
-% New_Networks: Set {} of new networks after the partition process
+%   L_new: Set {} of new networks after the partition process
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
@@ -26,14 +27,14 @@ c = 1; %Counter
 %%resulting incidence matrices go into new networks and otherwise goes the
 %%original inc mat
 for i = 1:Num_Netw
-    mu = MP_Compute_Mu(L{i});
+    mu = AUX_Compute_Mu(L{i});
     [n,~] = size(L{i});
     if isinf(beta)
         p(i) = 0;
     else
         p(i) = 2*exp(-beta*mu)/(1+exp(-beta*mu));
     end
-    x = binornd(1, p(i)); %Decide if the network will break or not
+    x = binornd(1, p(i)); % Sample 0/1 according to the probability
     if x == 1 %Partition of the network
         new_networks = MP_Partition_Eigenvector(L{i}); %Set of networks af the partition
         for j=1:length(new_networks)

@@ -58,8 +58,8 @@ T_new(na + y, x) = 1;
 
 %%M%% Centralidades para cada nodo y con min(_,_) > está comprobando que
 %%sean ambos mayor que el umbral
-W_T = MP_Centrality(T);
-W_T1 = MP_Centrality(T_new);
+W_T = AUX_Centrality(T);
+W_T1 = AUX_Centrality(T_new);
 Improve = min(W_T1(x)-W_T(x), W_T1(na+y)-W_T(na+y));
 
 if Improve > Min_Cent_Profit %Union Condition

@@ -1,7 +1,7 @@
-function [Networks_Time , L] = MP_Networld(N, beta, T_max)
+function [Networks_Time, L] = MP_Networld(N, beta, T_max)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Main_Process: Main Programm to compute 1 simulation
+% MP_Networld: Main Program that computes a networld simulation
 %Input variables:
 %   N: Number of initial Nodes
 %   Beta: Enviromental-Temperature factor
@@ -9,8 +9,8 @@ function [Networks_Time , L] = MP_Networld(N, beta, T_max)
 
 % Output variables:
 
-%   Networks_Time: Networks appeared in each time step.
-%   L: Networks that appeared in the final step.
+%   Networks_Time: Networks (adj matrix) present in each time step.
+%   L: Networks (adj mat) that appeared in the final step.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -47,8 +47,8 @@ while isequal(P,ones(N))==0 && counter <= T_max
         % Union_Allow: 0 = not joined; 1 = joined
         % Fin_Union: flag indicating whether the process finished with an
         % exact result
-    [T,Union_Allow,Fin_Union] = MP_Network_Union(A, B); %Try the union
-    Flags = horzcat(Flags,Fin_Union);
+    [T, Union_Allow, Fin_Union] = MP_Network_Union(A, B); %Try the union
+    Flags = horzcat(Flags, Fin_Union);
 
     % The union is repeated until some network can be joined, thus, the
     % partition step, counter update, ... don't happen until the union has
@@ -64,7 +64,7 @@ while isequal(P,ones(N))==0 && counter <= T_max
         %Partimos las redes
         %%M%% Partition es simplemente el nuevo L tras la particion
         L_new = MP_Network_Partition(L, beta);
-        L = L_new
+        L = L_new;
         Networks_Time{end+1} = L;
         N = max(size(L));
         P = eye(N);
@@ -74,6 +74,7 @@ while isequal(P,ones(N))==0 && counter <= T_max
         P(R2,R1) = 1;
     end
 end
+
 
 
 

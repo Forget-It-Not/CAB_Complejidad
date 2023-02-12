@@ -1,10 +1,11 @@
-function loop = Loop_Detector(R)
+function loop = MP_Loop_Detector(R)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-% Loop_Detector: Detect if a loop has happen in the process of union between 
-% two networks. To detect a loop we use R the matrix with the centralities
-% of each node. For each link that is accepted in the union we update the
-% matrix R, with the new centralities of the new networks. A loop is
-% detected if a row is repeted four times in the matrix R.
+% MP_Loop_Detector: 
+%   Detect if a loop has happen in the process of union between 
+%   two networks. To detect a loop we use R the matrix with the centralities
+%   of each node. For each link that is accepted in the union we update the
+%   matrix R, with the new centralities of the new networks. A loop is
+%   detected if a row is repeted four times in the matrix R.
 
 %Input:
 %   R: Matrix with centrailities of the nodes
@@ -13,8 +14,8 @@ function loop = Loop_Detector(R)
 %   loop: 1 if there is a loop, 0 otherwise.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% 
-n_loop = 4; % how many loops I want to be repeated to assimilate that it is stable. It must be 3 or more.
+% Number of loops until the result is considered stable. It must be 3 or more.
+n_loop = 4; 
 
 R2=R(end,:);
 x =bsxfun(@minus,R,R2);

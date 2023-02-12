@@ -1,21 +1,23 @@
 
 function [T, Union_Allow, Fin_Union] = MP_Network_Union(A, B)
 
-%% Función Unir2(A,B)
-
-% Joins two networks A, B according to the criterion of gaining centrality (>)
-% So that the centrality of the larger is 1 and that of the smaller is 0,
-% the union is done first by blocks, the first block being the largest and the
-% second being the smallest.
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% MP_Network_Union: 
+%   Joins two networks A, B according to the criterion of gaining centrality (>)
+%   So that the centrality of the larger is 1 and that of the smaller is 0,
+%   the union is done first by blocks, the first block being the largest and the
+%   second being the smallest.
 
 % Inputs:
 %   A, B: Adjacency matrices of the networks.
 % Outputs:
 %    T: Adjacency matrix of the final network.
 %    Union_Allow: 0 if they have not joined and 1 if they have joined.
+%    Fin_Union: 0 if the union has been solved approximately and 0
+%    otherwise
 
 % To understand better how this programm work, see Sup. Information in ...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Initial variables
 [na,~] = size(A);

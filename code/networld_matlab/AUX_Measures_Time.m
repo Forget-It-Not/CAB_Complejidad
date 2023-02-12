@@ -1,9 +1,10 @@
 
-function [Table_Time,Table_Unique,Networs_Time, Networks_Unique]= Measures_Time(Networks)
+function [Table_Time,Table_Unique,Networs_Time, Networks_Unique]= AUX_Measures_Time(Networks)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Measures_Time: Given a set of Networks this programm compute the measures
-% of each networks and saved on tables
+% AUX_Measures_Time: 
+%   Given a set of Networks this programm compute the measures
+%   of each networks and saved on tables
 
 % Input Data: 
 %   Networks: {} set with each network that the process had in each time
@@ -35,12 +36,12 @@ for t = 1:T
     N = max(size(Networks{t}));
     Meas_T = zeros(N,9); %vector with the measures of the networks
     for i = 1:N
-        Meas_T(i,1:end-1) = [t,i,Measures_Net(Networks{t}{i})];
+        Meas_T(i,1:end-1) = [t,i,AUX_Measures_Net(Networks{t}{i})];
     end
 
 % For each time step We eliminante the repeted networks using the measures from  Meas_T(:,[3:9])
 
-[T2,Indices_Save,Col_Num_Rep,IC] = Del_Repetitions(Meas_T(:,[3,4,6,7,8,9]),1e-12);
+[T2,Indices_Save,Col_Num_Rep,IC] = AUX_Del_Repetitions(Meas_T(:,[3,4,6,7,8,9]),1e-12);
 
 Table_Time = [Table_Time;[Meas_T(Indices_Save,1:end-1),Col_Num_Rep]]; 
 
@@ -48,7 +49,7 @@ Table_Time = [Table_Time;[Meas_T(Indices_Save,1:end-1),Col_Num_Rep]];
 % We eliminate again the repeted networks, now we do not take into account the time step
 
 Table_Unique = [Table_Unique;[Meas_T(Indices_Save,1:end-1),Col_Num_Rep]];
-[T2,Indices_Save,Col_Num_Rep,IC] = Del_Repetitions(Table_Unique(:,[3,4,6,7,8,9]),1e-12);
+[T2,Indices_Save,Col_Num_Rep,IC] = AUX_Del_Repetitions(Table_Unique(:,[3,4,6,7,8,9]),1e-12);
 Table_Unique = [Table_Unique(Indices_Save,1:end-1),Col_Num_Rep];
 
 

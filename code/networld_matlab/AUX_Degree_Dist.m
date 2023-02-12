@@ -1,4 +1,4 @@
-function [p,k]=Degree_Dist(A)
+function [p,k]=AUX_Degree_Dist(A)
 %% Computes the degree distribution of network with adjacency matrix A
 % Input:
 %   A: Adjacency Matrix

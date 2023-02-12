@@ -1,10 +1,12 @@
 
-function [T_New,Indices_Save,Col_Num_Rep,IC] = Del_Repetitions(T,Tol)
+function [T_New,Indices_Save,Col_Num_Rep,IC] = AUX_Del_Repetitions(T,Tol)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%Del_Repetitions: Delete from a table the repiting rows using each row as a
-%vector and computing the Euclidean Distance between the rows. If the
-%distance between two rows is less than a tolerance, the rows are considered the same.
+% AUX_Del_Repetitions: 
+%   Delete from a table the repiting rows using each row as a
+%   vector and computing the Euclidean Distance between the rows. If the
+%   distance between two rows is less than a tolerance, the rows are 
+%   considered the same.
 
 %%Inputs:
 %   T: Table (The las collumn of this table MUST be the number of time each
