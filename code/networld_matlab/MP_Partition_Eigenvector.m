@@ -1,4 +1,4 @@
-function partition= partition_eigenvector(red_inicial)
+function partition= MP_Partition_Eigenvector(red_inicial)
 
 %la red se debe llamar red_inicial y se pinta con > red_inicial=Redes{1,33};Red=graph(Red);plot(Red);
 %Antes de arrancarlo hay que hacer :EJEMPLO:  se lee T_9,
@@ -33,8 +33,9 @@ S2=V<0;
 red1=A(S,S);
 red2=A(S2,S2);  %%OJO; PUEDEN ESTAR PARTIDAS EN CASOS RAROS COMO ESTRELLAS
 
-%%M%% matriz de adyacencia global, equivalente a usar el blkdiagonal de antes
-red_nueva=[red1 zeros(size(red1,1),size(red2,2)); zeros(size(red2,1),size(red1,2)) red2];%-eye(size(red_inicial,1));
+%%M%% matriz de adyacencia global, 0s para los enlaces entre ambas
+%%componentes
+red_nueva = blkdiag(red1, red2);
 
 n=1;
 i=0;

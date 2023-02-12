@@ -1,6 +1,5 @@
-%%M%%
-    % Networks ~ Previous L, dict of incidence matrices
-function New_Networks = Partition_Step(Networks,beta)
+
+function [L_new] = MP_Network_Partition(L, beta)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -18,28 +17,31 @@ function New_Networks = Partition_Step(Networks,beta)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
 
-[~,Num_Netw] = size(Networks);
-New_Networks ={};
-p = zeros(1,Num_Netw); %Vector with the probabilities of partition of each netwoks
+[~, Num_Netw] = size(L);
+L_new ={};
+p = zeros(1, Num_Netw); %Vector with the probabilities of partition of each netwok
 c = 1; %Counter
 
 %%M%% All networks are tested for partitioning; If a matrix splits the 
 %%resulting incidence matrices go into new networks and otherwise goes the
 %%original inc mat
 for i = 1:Num_Netw
-    mu = Mu(Networks{i});
-    [n,~] = size(Networks{i});
-    p(i) = 2*exp(-beta*mu)/(1+exp(-beta*mu)); %Probability of Partition
-    %p(i) = 0; % Uncomment for Beta = Inf
-    x = binornd(1,p(i)); %Decide if the network will break or not
-    if x== 1 %Partition of the network
-        partititions= partition_eigenvector(Networks{i}); %Set of networks af the partition
-        for j=1:length(partititions)
-            New_Networks{c} = partititions{j};
+    mu = MP_Compute_Mu(L{i});
+    [n,~] = size(L{i});
+    if isinf(beta)
+        p(i) = 0;
+    else
+        p(i) = 2*exp(-beta*mu)/(1+exp(-beta*mu));
+    end
+    x = binornd(1, p(i)); %Decide if the network will break or not
+    if x == 1 %Partition of the network
+        new_networks = MP_Partition_Eigenvector(L{i}); %Set of networks af the partition
+        for j=1:length(new_networks)
+            L_new{c} = new_networks{j};
             c = c+1;
         end
     else
-        New_Networks{c} = Networks{i};
+        L_new{c} = L{i};
         c = c +1;
     end
 end

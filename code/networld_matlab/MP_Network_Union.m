@@ -1,5 +1,5 @@
 
-function [T,Union_Allow,Fin_Union] =  Union(A, B)
+function [T, Union_Allow, Fin_Union] = MP_Network_Union(A, B)
 
 %% Función Unir2(A,B)
 
@@ -84,7 +84,7 @@ while  Flag_List == 0 && Flag_Counter == 0 && Flag_Loop == 0
         for i = 1:2
             x = randi(na);
             y = randi(nb);
-            [T,Flag_Loop,M,R,Loop_Stop]=Try_Links(na,nb,T,x,y,R,Loop_Stop,Counter);
+            [T,Flag_Loop,M,R,Loop_Stop]=MP_Try_Links(na,nb,T,x,y,R,Loop_Stop,Counter);
             Counter = Counter + M;
             % Can end by loop
             if Flag_Loop == 1
@@ -110,7 +110,7 @@ while  Flag_List == 0 && Flag_Counter == 0 && Flag_Loop == 0
         for i = 1:Len_Lista
             x = Lista(1,i);
             y = Lista(2,i);
-            [T,Flag_Loop,M,R,Loop_Stop]=Try_Links(na,nb,T,x,y,R,Loop_Stop,Counter);
+            [T,Flag_Loop,M,R,Loop_Stop]=MP_Try_Links(na,nb,T,x,y,R,Loop_Stop,Counter);
             Counter = Counter +M;
             % If there is a loop, stop
             if Flag_Loop == 1

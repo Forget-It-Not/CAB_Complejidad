@@ -1,6 +1,6 @@
 
 
-function [u_T, lambda_T] = Autov(A)
+function [u_T, lambda_T] = MP_Autov(A)
 %%
 %Compute the eigenvector assiacted with the largest eigenvalue and the eigvenctor
 % of a adjacency matrix A.

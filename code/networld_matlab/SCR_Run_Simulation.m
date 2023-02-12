@@ -1,4 +1,4 @@
-function Networld(Data_Name)
+function SCR_Run_Simulation(Data_Name)
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Main program: Uses the rest of the functions to compute the finale data.
@@ -48,7 +48,7 @@ function Networld(Data_Name)
         Beta = beta(i);
         %%M%% Start timing execution
         tic
-        Networks = Main_Process(N, Beta, T_Max); %Networks from the process
+        Networks = MP_Networld(N, Beta, T_Max); %Networks from the process
 
         [Table_Time, Table_Unique, Networks_Time, Networks_Unique] = Measures_Time(Networks); %Computing the measures for each network
 
