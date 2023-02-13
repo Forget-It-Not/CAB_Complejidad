@@ -1,4 +1,4 @@
-function [Networks_Time, L] = MP_Networld(N, beta, T_max)
+function [Networks_Time, Flag_End] = MP_Networld(N, beta, T_max)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MP_Networld: Main Program that computes a networld simulation
@@ -10,7 +10,7 @@ function [Networks_Time, L] = MP_Networld(N, beta, T_max)
 % Output variables:
 
 %   Networks_Time: Networks (adj matrix) present in each time step.
-%   L: Networks (adj mat) that appeared in the final step.
+%   Flag_End: condtition that caused the end of the simulation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -73,6 +73,18 @@ while isequal(P,ones(N))==0 && counter <= T_max
         P(R1,R2) = 1;
         P(R2,R1) = 1;
     end
+end
+
+P
+if max(size(P)) == 1
+    % Single network component
+    Flag_End = 1;
+elseif isequal(P,ones(N))
+    % No connectable networks
+    Flag_End = 2;
+else
+    % Reached max iter
+    Flag_End = 3;
 end
 
 

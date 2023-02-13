@@ -11,7 +11,7 @@ if max(size(network)) ==1
 else
     %%M%% L = matriz laplaciana, D = autovalores
     L=-1*network+diag(sum(network));
-    D = eigs(L,2,'SA');
+    D = eigs(L,[],2,'SA');
     mu = D(2);
 end
 end

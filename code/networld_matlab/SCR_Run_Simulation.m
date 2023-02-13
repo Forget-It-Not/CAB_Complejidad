@@ -1,5 +1,5 @@
 %% Model Variables
- nrep=5; N = 20; T_Max = 1000; beta = 0:0.5:0.5;
+ nrep=1; N = 20; T_Max = 5000; beta = 0:0.2:3;
 
 %% Output Directory
 output_path = '/home/kiaran/Desktop/Ciencia_de_Datos/TFM/project/CAB_Complejidad/data/';
@@ -15,7 +15,7 @@ for i = 1:length(beta)
         Beta = beta(i);
         %%M%% tic ... toc: time execution
         tic
-        Networks = MP_Networld(N, Beta, T_Max);
+        [Networks, Flag_End] = MP_Networld(N, Beta, T_Max);
         disp 'MP_Networld Execution'
         toc 
     
@@ -30,25 +30,28 @@ for i = 1:length(beta)
     
         File_Name = strcat('N', num2str(N), '_Beta', num2str(Beta), '_TMax', num2str(T_Max), '_Rep', num2str(j), ".mat");
         save(File_Name, 'Networks_Unique', 'Networks_Time', 'Table_Time', 'Table_Unique', ...
-            'Beta', 'N', 'T_Max')
+            'Beta', 'N', 'T_Max', 'Flag_End')
         
         cd(code_path)
     end
 end
 
-output_files = dir(fullfile(output_path, '*.mat'));
+output_files = dir(fullfile(output_path, 'N20*.mat'));
 
 %% Figure 2H
-num_configs = []
-beta = []
+num_configs = [];
+beta = [];
+flag_end = [];
 for i = 1:length(output_files)
     file = strcat(output_path, output_files(i).name);
     disp file
-    load(file)
-    num_configs(end+1) = max(size(Networks_Unique))
-    beta(end+1) = Beta
+    load(file);
+    num_configs(end+1) = max(size(Networks_Unique));
+    beta(end+1) = Beta;
+    flag_end(end+1) = Flag_End;
 end
-scatter(beta, num_configs)
+scatter(beta, num_configs, 50, flag_end, 'filled');
+cb = colorbar;
 set(gca, 'YScale', 'log')
 
 

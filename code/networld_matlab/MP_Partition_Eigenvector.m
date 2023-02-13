@@ -20,7 +20,7 @@ links=sum(sum(A))/2;
 
 %%M%% Matriz de modularidad
 B=A-(k'*k)/(2*links);
-[V,~]=eigs(B,1);
+[V,~]=eigs(B,[],1);
 
 %%M%% La modularidad Q se maximiza separando los nodos según el signo del
 %%primer autovector. Los valores a 0 quedan aleatoriamene como +0 y -0 y

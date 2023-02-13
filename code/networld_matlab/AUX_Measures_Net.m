@@ -13,11 +13,11 @@ function Measures = AUX_Measures_Net(Network)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if Network == 0 %Simple node
-    Lambda1 = eigs(Network,1);
+    Lambda1 = eigs(Network,[],1);
     Lambda2 = 0;
     
 else
-    Lambdas = eigs(Network,2,'LA');
+    Lambdas = eigs(Network,[],2,'LA');
     Lambda1 = norm(Lambdas(1),2);Lambda2 = norm(Lambdas(2),2);
 end
 
