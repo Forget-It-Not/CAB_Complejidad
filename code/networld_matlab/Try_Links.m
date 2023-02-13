@@ -86,7 +86,7 @@ if Improve > Min_Cent_Profit %Union Condition
         if Long_Loop ~= 0  %We update the loop stop with a Poisson distribution
             r = poissrnd(5);
             Loop_Stop = r+Counter;
-        endº
+        end
 
     elseif Counter == Loop_Stop % If True, the union must end and Flag_Loop=1
         Flag_Loop = 1;

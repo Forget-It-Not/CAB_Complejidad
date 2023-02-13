@@ -30,14 +30,10 @@ function Networld(Data_Name)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     %% Variables
-    N = 10; T_Max = 10000; beta = 0:0.1:3;
+    N = 20; T_Max = 5000; beta = 0:0.2:3;
 
     %% Create output directory if it doesnt exist
-    E = exist('Data', 'dir');
-
-    if E ~= 7
-        mkdir('Data')
-    end
+    
 
     %%M%% Random seed
     % stream = RandStream('mt19937ar','seed',sum(100*clock));
@@ -58,22 +54,13 @@ function Networld(Data_Name)
         %%M%% End and report execution time
         toc
 
-        if not(isfolder("Data"))
-            mkdir("Data")
-        end
+        cd('../../data');
 
-        cd('Data')
-
-        if not(isfolder(Data_Name))
-            mkdir(Data_Name)
-        end
-
-        cd(Data_Name);
-        File_Name = strcat('N', num2str(N), '_Beta_', num2str(Beta), '_TMax', num2str(T_Max), ".mat");
+        File_Name = strcat('OLD_N', num2str(N), '_Beta_', num2str(Beta), '_TMax', num2str(T_Max), ".mat");
         save(File_Name, 'Networks_Unique', 'Networks_Time', 'Table_Time', 'Table_Unique', ...
             'Beta', 'N', 'T_Max')
         cd ..
-        cd ..
+        cd('code/networld_matlab/')
     end
 
 end
