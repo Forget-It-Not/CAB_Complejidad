@@ -75,7 +75,6 @@ while isequal(P,ones(N))==0 && counter <= T_max
     end
 end
 
-P
 if max(size(P)) == 1
     % Single network component
     Flag_End = 1;

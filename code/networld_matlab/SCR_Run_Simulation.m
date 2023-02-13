@@ -1,5 +1,5 @@
 %% Model Variables
- nrep=1; N = 20; T_Max = 5000; beta = 0:0.2:3;
+ nrep=1; N = 30; T_Max = 5000; beta = 0:0.1:3;
 
 %% Output Directory
 output_path = '/home/kiaran/Desktop/Ciencia_de_Datos/TFM/project/CAB_Complejidad/data/';
@@ -36,11 +36,12 @@ for i = 1:length(beta)
     end
 end
 
-output_files = dir(fullfile(output_path, 'N20*.mat'));
+output_files = dir(fullfile(output_path, 'N30*.mat'));
 
 %% Figure 2H
 num_configs = [];
 beta = [];
+H = []
 flag_end = [];
 for i = 1:length(output_files)
     file = strcat(output_path, output_files(i).name);
@@ -49,9 +50,20 @@ for i = 1:length(output_files)
     num_configs(end+1) = max(size(Networks_Unique));
     beta(end+1) = Beta;
     flag_end(end+1) = Flag_End;
+    n = Table_Unique.NumRep;
+    p = n / sum(n);
+    entropy = sum(-1 * p .* log2(p));
+    H(end+1) = entropy / log2(max(size(p)));
+
 end
+
+figure(1)
 scatter(beta, num_configs, 50, flag_end, 'filled');
 cb = colorbar;
 set(gca, 'YScale', 'log')
+
+figure(2)
+scatter(beta, H, 50, flag_end, 'filled');
+cb = colorbar;
 
 
