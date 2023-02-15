@@ -1,5 +1,11 @@
+%% SCRIPT INFO %%
+%%%%%%%%%%%%%%%%%
+
+% Script used to run Networld simulations and store the output so it can be
+% analyzed later using Python (please, please, for god's sake, use Python)
+
 %% Model Variables
- nrep=1; N = 30; T_Max = 5000; beta = 0:0.1:3;
+ nrep=1; N = 40; T_Max = 5000; beta = 0:0.1:3;
 
 %% Output Directory
 output_path = '/home/kiaran/Desktop/Ciencia_de_Datos/TFM/project/CAB_Complejidad/data/';
@@ -13,12 +19,15 @@ code_path = pwd;
 for i = 1:length(beta)
     for j = 1:nrep
         Beta = beta(i);
-        %%M%% tic ... toc: time execution
+        %%M%% tic ... toc: time 
+
+        % Execution of main program
         tic
         [Networks, Flag_End] = MP_Networld(N, Beta, T_Max);
         disp 'MP_Networld Execution'
-        toc 
-    
+        toc
+
+        % Processing of output
         tic
         [Table_Time, Table_Unique, Networks_Time, Networks_Unique] = AUX_Measures_Time(Networks); %Computing the measures for each network
         Table_Time = array2table(Table_Time, 'VariableNames', {'T_step', 'N', 'Lambda1', 'Lambda2', 'Mu', 'GrMedio', 'Entropia', 'NumRep'});
@@ -26,6 +35,7 @@ for i = 1:length(beta)
         disp 'Auxiliary data processing'
         toc 
     
+        % Storing the output
         cd(output_path)
     
         File_Name = strcat('N', num2str(N), '_Beta', num2str(Beta), '_TMax', num2str(T_Max), '_Rep', num2str(j), ".mat");
@@ -35,35 +45,5 @@ for i = 1:length(beta)
         cd(code_path)
     end
 end
-
-output_files = dir(fullfile(output_path, 'N30*.mat'));
-
-%% Figure 2H
-num_configs = [];
-beta = [];
-H = []
-flag_end = [];
-for i = 1:length(output_files)
-    file = strcat(output_path, output_files(i).name);
-    disp file
-    load(file);
-    num_configs(end+1) = max(size(Networks_Unique));
-    beta(end+1) = Beta;
-    flag_end(end+1) = Flag_End;
-    n = Table_Unique.NumRep;
-    p = n / sum(n);
-    entropy = sum(-1 * p .* log2(p));
-    H(end+1) = entropy / log2(max(size(p)));
-
-end
-
-figure(1)
-scatter(beta, num_configs, 50, flag_end, 'filled');
-cb = colorbar;
-set(gca, 'YScale', 'log')
-
-figure(2)
-scatter(beta, H, 50, flag_end, 'filled');
-cb = colorbar;
 
 
