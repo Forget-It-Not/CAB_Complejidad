@@ -53,7 +53,7 @@ ylabel('Normalized H');
 
 %% Transition bounds 
 pre_lim = 1.4;
-pos_lim = 2.5;
+pos_lim = 2.2;
 
 % Subset of data pre and pos transition
 beta_pre = beta(beta < pre_lim);
