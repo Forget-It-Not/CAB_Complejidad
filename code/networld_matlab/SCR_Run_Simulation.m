@@ -5,7 +5,7 @@
 % analyzed later using Python (please, please, for god's sake, use Python)
 
 %% Model Variables
- nrep=5; N = 40; T_Max = 5000; beta = 1.1:0.1:2; % 1.1:0.1:2
+ nrep=3; N = 40; T_Max = 10000; beta = 2:0.2:3; % 1.1:0.1:2
 
  independent_reps = false;
 
@@ -100,7 +100,7 @@ for i = 1:length(raw_files)
 
     disp(name)
     tic
-    [Networks_Unique, Networks_Measures, Networks_Time] = AUX_Measures_Time_V2(Networks);
+    [Networks_Unique, Networks_Measures, Networks_Time] = AUX_Process_RAW(Networks);
     % Storing the output
     cd(output_path)
     toc
