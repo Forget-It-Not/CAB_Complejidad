@@ -29,31 +29,12 @@ S2 = V<0;
 %%M%% PROBLEMA PARTICION: para algunas redes el autovector tiene valor 0 en
 %%algunos nodos, por lo que hay que ver como se separan
 
-zero_resolution_mode = 'ninguno';
-% Flag para solucionar manualmente las redes de 2 y 3 nodos (en principio
-% son las 2 únicas que dan problemas)
-do_manual_resolution = true;
-
-% Flag indicating whether manual solution has been applied
-manual_resolution = false;
-if do_manual_resolution
-    if isequal(size(red_inicial), [2,2])
-        S = [true,false];
-        S2 = [false,true];
-        manual_resolution = true;
-        % disp 'Manually solved for 2 nodes'
-    elseif isequal(size(red_inicial), [3,3])
-        S = [true,false,false];
-        S2 = [false,true,true];
-        manual_resolution = true;
-        % disp 'Manually solved for 3 nodes'
-    end
-end
+zero_resolution_mode = 'compensate';
 
 %%% METODO 1 - 'compensate' %%%: se envían los nodos a la partición que 
 % tiene menos nodos en un momento dado
 
-if isequal(zero_resolution_mode, 'compensate') && ~manual_resolution
+if isequal(zero_resolution_mode, 'compensate')
 
     % Number of nodes for each partition
     ns = sum(S); ns2 = sum(S2);
@@ -83,7 +64,7 @@ if isequal(zero_resolution_mode, 'compensate') && ~manual_resolution
 %%% y la mitad a otra (con impares el extra va a uno o a otro al azar ->
 %%% con un solo nodo a 0 puede no haber separacion)
 
-elseif isequal(zero_resolution_mode, 'partition') && ~manual_resolution
+elseif isequal(zero_resolution_mode, 'partition')
     zero_index = find(V==0);
     if isempty(zero_index) == 0
         zero_index = zero_index(randperm(max(size(zero_index))));
@@ -102,7 +83,7 @@ elseif isequal(zero_resolution_mode, 'partition') && ~manual_resolution
 %%% con probabilidad 0.5 -> puede haber un reparto desigual y puede no
 %%% haber rotura
 
-elseif isequal(zero_resolution_mode, 'random') && ~manual_resolution
+elseif isequal(zero_resolution_mode, 'random')
     for i = find(V==0)
         x = binornd(1,0.5);
         if x==0
@@ -111,8 +92,6 @@ elseif isequal(zero_resolution_mode, 'random') && ~manual_resolution
             S2(i) = 1;
         end
     end
-elseif isequal(zero_resolution_mode, 'negzero') && ~manual_resolution
-    S2 = V<=0;
 end
 
 

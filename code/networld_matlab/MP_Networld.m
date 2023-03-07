@@ -1,4 +1,4 @@
-function [Networks_Time, Flag_End] = MP_Networld(N, beta, T_max)
+function [Networks_Time, Flag_End, NUnion, Nout, network_pairs] = MP_Networld(N, beta, T_max)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MP_Networld: Main Program that computes a networld simulation
@@ -29,49 +29,74 @@ Flags = [];
 % the union of a network with itself
 P = eye(N); % for N=1e6 matlab: 0.03s vs python: 0.023s
 counter = 1; %Counter of time steps
+% NUR: number of unions rejected
+NUnion = 0;
+NUR = 0;
+Nout = 0;
+network_pairs = {};
 
 %% Main Loop (Union & Partition of Networks)
-while isequal(P,ones(N))==0 && counter <= T_max
+while counter <= T_max && isequal(P,ones(N))==0
     % P = equal(ones(N)) ~ all network unions have been tried
     % counter <= T_max ~ within simulation max time
 
     % R1, R2: indices (over P, L, ...) of a pair of networks to join
-    [R1, R2] = MP_Select_Networks(P);
 
-    % A,B: adyacency matrices of the networks
-    A = L{R1}; %Network A
-    B = L{R2}; % Network B
+    if max(size(P)) > 1 && any(P(:)==0)
 
-    %Union of Networks A and B
-        % T: adj mat of final network
-        % Union_Allow: 0 = not joined; 1 = joined
-        % Fin_Union: flag indicating whether the process finished with an
-        % exact result
-    [T, Union_Allow, Fin_Union] = MP_Network_Union(A, B); %Try the union
-    Flags = horzcat(Flags, Fin_Union);
+        [R1, R2] = MP_Select_Networks(P);
 
-    % The union is repeated until some network can be joined, thus, the
-    % partition step, counter update, ... don't happen until the union has
-    % been allowed
-    if Union_Allow == 1
-        counter = counter +1;
-        %If the union is posible we take the joined network and mov to the
-        %partition step
-        L{R1} = T;
-        %%M%% Al asignar [] la posición no queda con una lista vacia sino
-        %%que desparece
-        L(R2) = [];
-        %Partimos las redes
-        %%M%% Partition es simplemente el nuevo L tras la particion
+        % A,B: adyacency matrices of the networks
+        A = L{R1}; %Network A
+        B = L{R2}; % Network B
+        
+        %Union of Networks A and B
+            % T: adj mat of final network
+            % Union_Allow: 0 = not joined; 1 = joined
+            % Fin_Union: flag indicating whether the process finished with an
+            % exact result
+        NUnion = NUnion + 1;
+        [T, Union_Allow, Fin_Union] = MP_Network_Union(A, B); %Try the union
+        Flags = horzcat(Flags, Fin_Union);
+
+        if Fin_Union == 2
+            Nout = Nout+1;
+            network_pairs{end+1} = {L{R1},L{R2}};
+        end
+
+        % The union is repeated until some network can be joined, thus, the
+        % partition step, counter update, ... don't happen until the union has
+        % been allowed
+        if Union_Allow == 1 && Fin_Union ~= 2
+            counter = counter +1;
+            %If the union is posible we take the joined network and mov to the
+            %partition step
+            L{R1} = T;
+            %%M%% Al asignar [] la posición no queda con una lista vacia sino
+            %%que desparece
+            L(R2) = [];
+
+            %Partimos las redes
+            %%M%% Partition es simplemente el nuevo L tras la particion
+            L_new = MP_Network_Partition(L, beta);
+            L = L_new;
+
+            Networks_Time{end+1} = L;
+            N = max(size(L));
+            P = eye(N);
+        else
+            %The union was not possible
+            P(R1,R2) = 1;
+            P(R2,R1) = 1;
+            NUR = NUR + 1;
+        end
+    else
         L_new = MP_Network_Partition(L, beta);
         L = L_new;
         Networks_Time{end+1} = L;
         N = max(size(L));
         P = eye(N);
-    else
-        %The union was not possible
-        P(R1,R2) = 1;
-        P(R2,R1) = 1;
+        counter = counter+1;
     end
 end
 
@@ -84,6 +109,7 @@ elseif isequal(P,ones(N))
 else
     % Reached max iter
     Flag_End = 3;
+end
 end
 
 

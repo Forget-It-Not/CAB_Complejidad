@@ -1,3 +1,4 @@
 .~lock.*
 *.mat
+*.csv
 code/ignorethis.ipynb

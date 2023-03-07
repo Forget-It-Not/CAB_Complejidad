@@ -7,7 +7,7 @@
 % Input: simulation data obtained from SCR_Run_Simulation
 
 %% Path of simulation data
-data_path = '/home/kiaran/Desktop/Ciencia_de_Datos/TFM/project/CAB_Complejidad/data/';
+data_path = '/home/kiaran/Desktop/Ciencia_de_Datos/TFM/project/CAB_Complejidad/data/tmp/';
 % Use a pattern to only use a subset of files (e.g. only files with N=20)
 data_files = dir(fullfile(data_path, 'N40*.mat'));
 
@@ -22,11 +22,14 @@ for i = 1:length(data_files)
     file = strcat(data_path, data_files(i).name);
     load(file);
     num_configs(end+1) = max(size(Networks_Unique));
+    if isa(Beta, 'char')
+        Beta = str2num(Beta);
+    end
     beta(end+1) = Beta;
     % flag_ends(end+1) = Flag_End;
 
     % Normalized entropy calculations
-    n = Table_Unique.NumRep; % number of copies of a network over time
+    n = Table_Unique(:,end); % number of copies of a network over time
     p = n / sum(n); % normalization, prob of finding a network
     entropy = sum(-1 * p .* log2(p));
     H(end+1) = entropy / log2(max(size(p))); % Normalized entropy
@@ -52,8 +55,8 @@ xlabel('beta');
 ylabel('Normalized H');
 
 %% Transition bounds 
-pre_lim = 1.4;
-pos_lim = 2.2;
+pre_lim = 2;
+pos_lim = 2.7;
 
 % Subset of data pre and pos transition
 beta_pre = beta(beta < pre_lim);
