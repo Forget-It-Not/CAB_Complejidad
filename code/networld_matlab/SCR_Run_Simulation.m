@@ -5,7 +5,7 @@
 % analyzed later using Python (please, please, for god's sake, use Python)
 
 %% Model Variables
- nrep=3; N = 40; T_Max = 10000; beta = 2:0.2:3; % 1.1:0.1:2
+ nrep=5; N = 40; T_Max = 5000; beta = 2.9:0.1:3; % 1.1:0.1:2
 
  independent_reps = false;
 
@@ -91,7 +91,7 @@ end
 
 
 %% Alternative Processing of RAW files
-raw_files = dir(fullfile(output_path, 'RAW_N20*.mat'));
+raw_files = dir(fullfile(output_path, 'RAW_N40*_TMax10000*.mat'));
 
 for i = 1:length(raw_files)
     name = raw_files(i).name;
