@@ -26,74 +26,31 @@ B=A-(k'*k)/(2*links);
 S = V>0;
 S2 = V<0;
 
-%%M%% PROBLEMA PARTICION: para algunas redes el autovector tiene valor 0 en
-%%algunos nodos, por lo que hay que ver como se separan
+% Los nodos con V == 0 se envían a la partición que menos nodos tiene
 
-zero_resolution_mode = 'compensate';
+% Number of nodes for each partition
+ns = sum(S); ns2 = sum(S2);
 
-%%% METODO 1 - 'compensate' %%%: se envían los nodos a la partición que 
-% tiene menos nodos en un momento dado
-
-if isequal(zero_resolution_mode, 'compensate')
-
-    % Number of nodes for each partition
-    ns = sum(S); ns2 = sum(S2);
-
-    % Nodes with exact V=0
-    for i = find(V==0)
-        if ns < ns2
-            S(i) = 1;
-            ns = ns+1;
-        elseif ns2 < ns
-            S2(i) = 1;
-            ns2 = ns2+1;
-        % If both partitions have the same number, random
-        else
-            x = binornd(1,0.5);
-            if x==0
-                S(i) = 1;
-                ns = ns+1;
-            else
-                S2(i) = 1;
-                ns2 = ns2+1;
-            end
-        end
-    end
-
-%%% METODO 2 - 'partition' %%%: se envia la mitad de nodos a una particion
-%%% y la mitad a otra (con impares el extra va a uno o a otro al azar ->
-%%% con un solo nodo a 0 puede no haber separacion)
-
-elseif isequal(zero_resolution_mode, 'partition')
-    zero_index = find(V==0);
-    if isempty(zero_index) == 0
-        zero_index = zero_index(randperm(max(size(zero_index))));
-        
-        first_extra = binornd(1,0.5);
-        if first_extra == 1
-            stop = ceil(max(size(zero_index))/2);
-        else
-            stop = floor(max(size(zero_index))/2);
-        end
-        S(zero_index(1:stop)) = 1;
-        S2(zero_index(stop+1:end)) = 1;
-    end
-
-%%% METODO 3 - 'random' %%%: se envia cada nodo a una particion o a otra
-%%% con probabilidad 0.5 -> puede haber un reparto desigual y puede no
-%%% haber rotura
-
-elseif isequal(zero_resolution_mode, 'random')
-    for i = find(V==0)
+% Nodes with exact V=0
+for i = find(V==0)
+    if ns < ns2
+        S(i) = 1;
+        ns = ns+1;
+    elseif ns2 < ns
+        S2(i) = 1;
+        ns2 = ns2+1;
+    % If both partitions have the same number, random
+    else
         x = binornd(1,0.5);
         if x==0
             S(i) = 1;
+            ns = ns+1;
         else
             S2(i) = 1;
+            ns2 = ns2+1;
         end
     end
 end
-
 
 %Q=(s'*B*s)/(4*links);  %modularidad, INNECESARIO
 red1=A(S,S);
