@@ -7,7 +7,7 @@
 % Input: simulation data obtained from SCR_Run_Simulation
 
 %% Path of simulation data
-data_path = '/home/kiaran/Desktop/Ciencia_de_Datos/TFM/project/CAB_Complejidad/data/tmp/';
+data_path = '/home/kiaran/Desktop/Ciencia_de_Datos/TFM/CAB_Complejidad/data/Networld_N40_TMax5000/';
 % Use a pattern to only use a subset of files (e.g. only files with N=20)
 data_files = dir(fullfile(data_path, 'N40*.mat'));
 
@@ -29,7 +29,8 @@ for i = 1:length(data_files)
     % flag_ends(end+1) = Flag_End;
 
     % Normalized entropy calculations
-    n = Table_Unique(:,end); % number of copies of a network over time
+    %n = Table_Unique(:,end); % number of copies of a network over time
+    n = Table_Unique.NumRep;
     p = n / sum(n); % normalization, prob of finding a network
     entropy = sum(-1 * p .* log2(p));
     H(end+1) = entropy / log2(max(size(p))); % Normalized entropy
