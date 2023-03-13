@@ -30,7 +30,7 @@ num_part = 0;
 for i = 1:Num_Netw
     mu = AUX_Compute_Mu(L{i});
     [n,~] = size(L{i});
-    if isinf(beta)
+    if isinf(beta) || max(size(L{i})) == 1
         p(i) = 0;
     else
         p(i) = 2*exp(-beta*mu)/(1+exp(-beta*mu));

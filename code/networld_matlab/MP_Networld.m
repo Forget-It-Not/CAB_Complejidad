@@ -70,7 +70,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
 
             %Partimos las redes
             %%M%% Partition es simplemente el nuevo L tras la particion
-            [L_new, num_part] = MP_Network_Partition(L, beta * length(L));
+            [L_new, num_part] = MP_Network_Partition(L, beta);
             NPartition = NPartition + num_part;
             L = L_new;
 
@@ -83,7 +83,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
             P(R2,R1) = 1;
         end
     else
-        [L_new, num_part] = MP_Network_Partition(L, beta  * length(L));
+        [L_new, num_part] = MP_Network_Partition(L, beta);
         NPartition = NPartition + num_part;
         L = L_new;
         Networks_Time{end+1} = L;
