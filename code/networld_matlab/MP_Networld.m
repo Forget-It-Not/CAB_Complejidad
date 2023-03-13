@@ -1,4 +1,4 @@
-function [Networks_Time] = MP_Networld(N, beta, T_max)
+function [Networks_Time, NUnion, NPartition] = MP_Networld(N, beta, T_max)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MP_Networld: Main Program that computes a networld simulation
@@ -27,6 +27,8 @@ Flags = [];
 % the union of a network with itself
 P = eye(N); % for N=1e6 matlab: 0.03s vs python: 0.023s
 counter = 1; %Counter of time steps
+NUnion = 0;
+NPartition = 0;
 
 %% Main Loop (Union & Partition of Networks)
 while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR UNA RED COMPLETA
@@ -58,6 +60,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
         % been allowed
         if Union_Allow == 1 %&& Fin_Union ~= 2  // PARA QUE SOLO ACEPTE UNIONES SI SE ALCANZA EL EQUILIBRIO DE NASH
             counter = counter +1;
+            NUnion = NUnion +1;
             %If the union is posible we take the joined network and mov to the
             %partition step
             L{R1} = T;
@@ -67,7 +70,8 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
 
             %Partimos las redes
             %%M%% Partition es simplemente el nuevo L tras la particion
-            L_new = MP_Network_Partition(L, beta);
+            [L_new, num_part] = MP_Network_Partition(L, beta * length(L));
+            NPartition = NPartition + num_part;
             L = L_new;
 
             Networks_Time{end+1} = L;
@@ -79,7 +83,8 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
             P(R2,R1) = 1;
         end
     else
-        L_new = MP_Network_Partition(L, beta);
+        [L_new, num_part] = MP_Network_Partition(L, beta  * length(L));
+        NPartition = NPartition + num_part;
         L = L_new;
         Networks_Time{end+1} = L;
         N = max(size(L));

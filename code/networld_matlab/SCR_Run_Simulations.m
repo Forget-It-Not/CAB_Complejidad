@@ -22,6 +22,7 @@ function SCR_Run_Simulations(N, beta, T_Max, nrep, out_path)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 code_path = pwd;
+disp(out_path)
 
 % For each combination of parameter values...
 for Ni = N
@@ -35,13 +36,14 @@ for ni = nrep
 
     % Main Program Execution
     tic
-    Networks = MP_Networld(Ni, betai, T_Maxi);
+    [Networks, NUnion, NPartition] = MP_Networld(Ni, betai, T_Maxi);
+    disp(NPartition/NUnion)
     toc
 
     % Storing RAW Output
     cd(out_path)
     File_Name = strcat('RAW_N', num2str(Ni), '_Beta', num2str(betai), '_TMax', num2str(T_Maxi), '_Rep', num2str(ni), ".mat");
-    save(File_Name, 'Networks')
+    save(File_Name, 'Networks', 'NUnion', 'NPartition')
     cd(code_path)
 
 end
