@@ -50,34 +50,28 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
             % Union_Allow: 0 = not joined; 1 = joined
             % Fin_Union: flag indicating whether the process finished with an
             % exact result
-        [T, Union_Allow, Fin_Union] = MP_Network_Union(A, B); %Try the union
-        Flags = horzcat(Flags, Fin_Union);
+        T = MP_Network_Union(A, B); %Try the union
 
         % The union is repeated until some network can be joined, thus, the
         % partition step, counter update, ... don't happen until the union has
         % been allowed
-        if Union_Allow == 1 %&& Fin_Union ~= 2  // PARA QUE SOLO ACEPTE UNIONES SI SE ALCANZA EL EQUILIBRIO DE NASH
-            counter = counter +1;
-            %If the union is posible we take the joined network and mov to the
-            %partition step
-            L{R1} = T;
-            %%M%% Al asignar [] la posición no queda con una lista vacia sino
-            %%que desparece
-            L(R2) = [];
+        
+        counter = counter +1;
+        %If the union is posible we take the joined network and mov to the
+        %partition step
+        L{R1} = T;
+        %%M%% Al asignar [] la posición no queda con una lista vacia sino
+        %%que desparece
+        L(R2) = [];
 
-            %Partimos las redes
-            %%M%% Partition es simplemente el nuevo L tras la particion
-            L_new = MP_Network_Partition(L, beta);
-            L = L_new;
+        %Partimos las redes
+        %%M%% Partition es simplemente el nuevo L tras la particion
+        L_new = MP_Network_Partition(L, beta);
+        L = L_new;
 
-            Networks_Time{end+1} = L;
-            N = max(size(L));
-            P = eye(N);
-        else
-            %The union was not possible
-            P(R1,R2) = 1;
-            P(R2,R1) = 1;
-        end
+        Networks_Time{end+1} = L;
+        N = max(size(L));
+        P = eye(N);
     else
         L_new = MP_Network_Partition(L, beta);
         L = L_new;
