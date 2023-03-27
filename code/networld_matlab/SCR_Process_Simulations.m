@@ -28,6 +28,7 @@ for i=1:length(raw_files)
     tic
     [Networks_Time, Networks_Key, Networks_Unique, Networks_Measures] = AUX_Process_RAW(Networks, Networks_Key, Networks_Unique, Networks_Measures);
     save(strcat(data_path, 'SRC_', name), "Networks_Time")
+    save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
     toc
 end
 
