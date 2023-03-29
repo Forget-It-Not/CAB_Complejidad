@@ -55,17 +55,11 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
         B = L{R2}; % Network B
         
         %Union of Networks A and B
-            % T: adj mat of final network
-            % Union_Allow: 0 = not joined; 1 = joined
-            % Fin_Union: flag indicating whether the process finished with an
-            % exact result
-        [T, Union_Allow, Fin_Union] = MP_Network_Union(A, B); %Try the union
-        Flags = horzcat(Flags, Fin_Union);
+        % T = MP_Network_Union(A, B, 1); %%% FOR ALL POSSIBLE LINKS
+        T = MP_Network_Union(A, B, 0.67); %%% FOR 2/3s OF POSSIBLE LINKS
 
-        if Union_Allow == 1 %&& Fin_Union ~= 2  // PARA QUE SOLO ACEPTE UNIONES SI SE ALCANZA EL EQUILIBRIO DE NASH
-            L{R1} = T;
-            L{R2} = [];
-        end
+        L{R1} = T;
+        L{R2} = [];
     end
 
     empty_idx = cellfun('isempty', L);

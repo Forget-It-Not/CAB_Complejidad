@@ -40,7 +40,7 @@ for ni = nrep
 
     % Storing RAW Output
     cd(out_path)
-    File_Name = strcat('RAW_N', num2str(Ni), '_Beta', num2str(betai), '_TMax', num2str(T_Maxi), '_Rep', num2str(ni), ".mat");
+    File_Name = strcat('RAW_N', num2str(Ni), '_Beta', num2str(betai), '_TMax', num2str(T_Maxi), '_Rep', num2str(ni), '.mat');
     save(File_Name, 'Networks')
     cd(code_path)
 
