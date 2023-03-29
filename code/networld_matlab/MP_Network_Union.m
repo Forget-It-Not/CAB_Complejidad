@@ -1,5 +1,5 @@
 
-function T = MP_Network_Union(A, B)
+function T = MP_Network_Union(A, B, fraction)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MP_Network_Union: 
@@ -8,6 +8,7 @@ function T = MP_Network_Union(A, B)
 
 % Inputs:
 %   A, B: Adjacency matrices of the networks.
+%   fraction: fraction of all possible links that will be made
 % Outputs:
 %    T: Adjacency matrix of the final network.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -16,6 +17,7 @@ function T = MP_Network_Union(A, B)
 [na,~] = size(A);
 [nb,~] = size(B);
 nmin = min(na,nb);
+nlinks = round(fraction*nmin);
 
 % A1 = small network; A2 = big network
 if na < nb
@@ -41,7 +43,7 @@ rank2 = rank2(1:nmin);
 % Adj matrix of the union without links between networks
 T = blkdiag(A1,A2);
 
-for i=1:nmin
+for i=1:nlinks
     % Nodes from the bigger network have index nmin + i (due to joining the
     % small network first and the big second)
     T(rank1(i), nmin + rank2(i)) = 1;

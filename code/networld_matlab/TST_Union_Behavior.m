@@ -20,7 +20,7 @@ for i=1:ncases
     plot(GB);
     
     subplot(3,ncases,(i-1)*3 + 3)
-    T = MP_Network_Union(A,B);
+    T = MP_Network_Union(A,B, 0.67);
     GT = graph(T);
     plot(GT);
     
