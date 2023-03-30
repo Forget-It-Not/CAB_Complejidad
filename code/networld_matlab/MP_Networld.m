@@ -13,6 +13,8 @@ function [Networks_Time] = MP_Networld(N, beta, T_max)
 
 metadata_path = '~/Desktop/Ciencia_de_Datos/TFM/CAB_Complejidad/data/networld_metadata.mat';
 load(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
+metadata_path = '~/Desktop/Ciencia_de_Datos/TFM/CAB_Complejidad/data/networld_metadata.mat';
+load(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
 
 %% Initial variables
 % L: cell array with a cell for each network, which in turn contains the
@@ -44,6 +46,10 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
         [R1, R2] = MP_Select_Networks(P);
 
         % A,B: adyacency matrices of the networks
+        A = L(R1); %Network A
+        A = Networks_Unique{A};
+        B = L(R2); % Network B
+        B = Networks_Unique{B};
         A = L(R1); %Network A
         A = Networks_Unique{A};
         B = L(R2); % Network B
