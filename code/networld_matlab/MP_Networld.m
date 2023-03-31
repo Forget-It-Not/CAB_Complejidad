@@ -8,34 +8,37 @@ function [Networks_Time] = MP_Networld(N, beta, T_max)
 %   T_Max: Max. allowed steps
 
 % Output variables:
-%   Networks_Time: Networks (adj matrix) present in each time step.
+%   Networks_Time: Row for each (repeated) network that appeared in the 
+%   simulation, where the columns correspond to: t, NRed (references 
+%   Network_Unique) and NRep (=1)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-metadata_path = '~/Desktop/Ciencia_de_Datos/TFM/CAB_Complejidad/data/networld_metadata.mat';
-load(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
-metadata_path = '~/Desktop/Ciencia_de_Datos/TFM/CAB_Complejidad/data/networld_metadata.mat';
-load(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
+metadata_path = '../../data/networld_metadata.mat';
+load(metadata_path)
 
 %% Initial variables
-% L: cell array with a cell for each network, which in turn contains the
-% adyacency matrix of the network (simply [0] for a single node)
-L = ones(1,N);
-% Networks_Time: cell array with a cell for each point in time, which
-% corresponds to the L of that point in time
+% net_ids: vector with the id of each network (id of single node = 1)
+% net_mats: cell array with the adyacency matrix of each network ([0] for single node)
+net_ids = ones(1,N);
+for i = 1:N
+    net_mats{i} = 0; % for N=1e6 matlab: 0.7s vs python: 0.3s
+end
 
-Networks_Time = [L(:),L(:),L(:)];
+% Initial time, network id and nº copies are all 1s for the first step
+Networks_Time = [ones(N,1),net_ids(:),ones(N,1)];
 
 Flags = [];
+
 % P: matrix with Pij=1 for the forbidden network unions (a network with
 % itself or a pair that has already been tried). Initialized to forbid only 
 % the union of a network with itself
-P = eye(N); % for N=1e6 matlab: 0.03s vs python: 0.023s
+P = eye(N);
 counter = 1; %Counter of time steps
 
 %% Main Loop (Union & Partition of Networks)
 while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR UNA RED COMPLETA
-    % P = equal(ones(N)) ~ all network unions have been tried
     % counter <= T_max ~ within simulation max time
+    % P = equal(ones(N)) ~ no new union is possible
 
     % R1, R2: indices (over P, L, ...) of a pair of networks to join
 
@@ -46,72 +49,38 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
         [R1, R2] = MP_Select_Networks(P);
 
         % A,B: adyacency matrices of the networks
-        A = L(R1); %Network A
-        A = Networks_Unique{A};
-        B = L(R2); % Network B
-        B = Networks_Unique{B};
-        A = L(R1); %Network A
-        A = Networks_Unique{A};
-        B = L(R2); % Network B
-        B = Networks_Unique{B};
+        A = net_mats{R1}; %Network A
+        B = net_mats{R2}; % Network B
         
         %Union of Networks A and B
-        % T = MP_Network_Union(A, B, 1); %%% FOR ALL POSSIBLE LINKS
-        T = MP_Network_Union(A, B, 0.67); %%% FOR 2/3s OF POSSIBLE LINKS
-        T_meas = AUX_Measures_Net(T);
-
-        present = 0;
-        for j = 1:size(Networks_Measures, 1)
-            alfa = norm(Networks_Measures(j,:)- T_meas,2);
-            if alfa < 1e-12
-                % If present its index is the network identifier given by
-                % the Networks_Key
-                network_id = Networks_Key(j);
-                present = 1;
-                break
-            end
-        end
-
-        if present == 0
-            % Network identifier is current number of networks +1
-            network_id = size(Networks_Measures,1) +1;
-            Networks_Measures(network_id,:) = measures;
-            Networks_Unique{network_id} = T;
-            % The key will always be of type Key(i) = i until the metadata
-            % is sorted
-            Networks_Key(network_id) = network_id;
-        end
+        %%% FOR ALL POSSIBLE LINKS
+        % [T, Networks_Key, Networks_Unique, Networks_Measures] = ...
+        %    MP_Network_Union(A, B, 1, Networks_Key, Networks_Unique, Networks_Measures); 
+        %%% FOR 2/3s OF POSSIBLE LINKS
+        [T_id, T_mat, Networks_Key, Networks_Unique, Networks_Measures] = ...
+            MP_Network_Union(A, B, 0.67, Networks_Key, Networks_Unique, Networks_Measures); 
         
-        counter = counter +1;
-        %If the union is posible we take the joined network and mov to the
-        %partition step
-        L(R1) = network_id;
-        %%M%% Al asignar [] la posición no queda con una lista vacia sino
-        %%que desparece
-        L(R2) = [];
-
-        %Partimos las redes
-        %%M%% Partition es simplemente el nuevo L tras la particion
-
-        %%% COMO COJONES LO HACEMOS AQUI???
-        L_new = MP_Network_Partition(L, beta);
-        L = L_new;
-
-        block = [ones(length(L),1)*counter,L(:),ones(length(L),1)];
-        Networks_Time = [Networks_Time; block];
-        N = length(L);
-        P = eye(N);
-    else
-        L_new = MP_Network_Partition(L, beta);
-        L = L_new;
-
-        block = [ones(length(L),1)*counter,L(:),ones(length(L),1)];
-        Networks_Time = [Networks_Time; block];
-        N = length(L);
-        P = eye(N);
-        counter = counter+1;
+        net_ids(R1) = T_id;
+        net_mats{R1} = T_mat;
+        net_ids(R2) = [];
+        net_mats(R2) = [];
     end
+
+    [net_ids_new, net_mats_new, Networks_Key, Networks_Unique, Networks_Measures] = ...
+        MP_Network_Partition(net_ids, net_mats, beta, Networks_Key, Networks_Unique, Networks_Measures); 
+    net_ids = net_ids_new;
+    net_mats = net_mats_new;
+
+    N = length(net_ids);
+    P = eye(N);
+    counter = counter+1;
+
+    next_block = [ones(N,1)*counter,net_ids(:),ones(N,1)];
+    Networks_Time = [Networks_Time; next_block];
 end
+
+save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
+
 end
 
 

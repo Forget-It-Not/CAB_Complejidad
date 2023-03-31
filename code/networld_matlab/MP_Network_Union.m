@@ -1,5 +1,6 @@
 
-function T = MP_Network_Union(A, B, fraction)
+function [T_id, T_mat, Networks_Key, Networks_Unique, Networks_Measures] = ...
+            MP_Network_Union(A, B, fraction, Networks_Key, Networks_Unique, Networks_Measures)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MP_Network_Union: 
@@ -9,8 +10,11 @@ function T = MP_Network_Union(A, B, fraction)
 % Inputs:
 %   A, B: Adjacency matrices of the networks.
 %   fraction: fraction of all possible links that will be made
+%   metadata: metdata tables used to identify the joined network
 % Outputs:
-%    T: Adjacency matrix of the final network.
+%   T_id: identifier of the final network
+%   T_mat: Adjacency matrix of the final network.
+%   metadata: updated metadata
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Sizes of each network and minimum size (=nº links)
@@ -41,14 +45,39 @@ rank1 = rank1(1:nmin);
 rank2 = rank2(1:nmin);
 
 % Adj matrix of the union without links between networks
-T = blkdiag(A1,A2);
+T_mat = blkdiag(A1,A2);
 
 for i=1:nlinks
     % Nodes from the bigger network have index nmin + i (due to joining the
     % small network first and the big second)
-    T(rank1(i), nmin + rank2(i)) = 1;
-    T(nmin + rank2(i), rank1(i)) = 1;
+    T_mat(rank1(i), nmin + rank2(i)) = 1;
+    T_mat(nmin + rank2(i), rank1(i)) = 1;
 end
 
+T_meas = AUX_Measures_Net(T_mat);
+
+% Check if the measure vector is present in the metadata
+present = 0;
+for j = 1:size(Networks_Measures, 1)
+    alfa = norm(Networks_Measures(j,:)- T_meas,2);
+    if alfa < 1e-12
+        % If present its index is the network identifier given by
+        % the Networks_Key
+        T_id = Networks_Key(j);
+        present = 1;
+        break
+    end
+end
+
+% If not present, add it to the metadata
+if present == 0
+    % Network identifier is current number of networks +1
+    T_id = size(Networks_Measures,1) +1;
+    Networks_Measures(T_id,:) = T_meas;
+    Networks_Unique{T_id} = T_mat;
+    % The key will always be of type Key(i) = i until the metadata
+    % is sorted
+    Networks_Key(T_id) = T_id;
+end
 end
 
