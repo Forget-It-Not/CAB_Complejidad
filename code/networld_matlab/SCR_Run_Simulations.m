@@ -35,13 +35,13 @@ for ni = nrep
 
     % Main Program Execution
     tic
-    Networks = MP_Networld(Ni, betai, T_Maxi);
+    Networks_Time = MP_Networld(Ni, betai, T_Maxi);
     toc
 
     % Storing RAW Output
     cd(out_path)
-    File_Name = strcat('RAW_N', num2str(Ni), '_Beta', num2str(betai), '_TMax', num2str(T_Maxi), '_Rep', num2str(ni), '.mat');
-    save(File_Name, 'Networks')
+    File_Name = strcat('SRC_N', num2str(Ni), '_Beta', num2str(betai), '_TMax', num2str(T_Maxi), '_Rep', num2str(ni), '.mat');
+    save(File_Name, 'Networks_Time')
     cd(code_path)
 
 end
