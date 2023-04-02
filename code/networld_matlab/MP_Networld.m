@@ -28,10 +28,8 @@ num_nets = N;
 % Initial time, network id and nº copies are all 1s for the first step
 Networks_Time = [ones(N,1),net_ids(:),ones(N,1)];
 
-% P: matrix with Pij=1 for the forbidden network unions (a network with
-% itself or a pair that has already been tried). Initialized to forbid only 
-% the union of a network with itself
-P = eye(N);
+% P: vector with Pi=1 if network i has already participated in a union this point in time
+P = zeros(1,N);
 counter = 1; %Counter of time steps
 
 %% Main Loop (Union & Partition of Networks)
@@ -39,20 +37,27 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
     % counter <= T_max ~ within simulation max time
     % P = equal(ones(N)) ~ no new union is possible
 
-    freq_u = (num_nets^2) / (4*N);
-    num_unions = poissrnd(freq_u);
+    binom_n = (num_nets-1)*(num_nets-1);
+    binom_p = 5/N;
+    num_unions = binornd(binom_n, binom_p);
 
     for i = 1:num_unions
         if all(P(:)==1)
             break
         end
 
-        % Incorrecto, aqui puede seleccionar un producto de union para la siguiente union ¡CAMBIAR!
-        [R1, R2] = MP_Select_Networks(P);
-        P(R1,:) = 1;
-        P(:,R1) = 1;
-        P(R2,:) = 1;
-        P(:,R2) = 1;
+        R1 = randi(num_nets);
+        R2 = randi(num_nets);
+        while R1 == R2
+            R2 = randi(num_nets);
+        end
+
+        if P(R1) == 1 || P(R2) == 1
+            continue
+        else
+            P(R1) = 1;
+            P(R2) = 1;
+        end
 
         % A,B: adyacency matrices of the networks
         A = net_mats{R1}; %Network A
