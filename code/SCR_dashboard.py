@@ -1,5 +1,3 @@
-LOG_X = True
-
 ### Modules ###
 
 from dash import Dash, html, dcc
@@ -16,8 +14,6 @@ networks, measures = load_meta_networld()
 
 os.chdir('/home/kiaran/Desktop/Ciencia_de_Datos/TFM/CAB_Complejidad/code/networld_matlab/')
 base_path = '../../data/Networld_N40_TMax5000_Kinetics_Binomial_'
-
-x_lims = None if LOG_X else [0,3]
 
 plot_data = {}
 for k in ['5', '1', '0.1', '0.01']:
@@ -46,6 +42,7 @@ for k in ['5', '1', '0.1', '0.01']:
     plot_dat = exp_data.groupby('beta')['NRed'].nunique().reset_index()
     plot_dat.rename(columns={'NRed': '# Configs'}, inplace=True)
     plot_dat['entropy'] = exp_data.groupby('beta')['NRep'].aggregate(entropy).reset_index(drop=True)
+    plot_dat['entropy'] = plot_dat['entropy'] / np.log2(plot_dat['# Configs'])
 
     tmp_data = pd.concat(nt_list, axis=0)
     tmp_data = tmp_data.sort_values(by=['beta', 'rep', 'NRed'])
@@ -59,30 +56,60 @@ print('Finished Loading')
 app = Dash(__name__)
 
 app.layout = html.Div([
-    html.Div([
-        html.P(f'K = {k}'),
-        dcc.Graph(
-            id = f'{k} - 2H',
-            figure = px.scatter(plot_data[k], x='beta', y='# Configs',
-                       log_x=LOG_X, log_y=True, range_x=x_lims,
-                       title='2H', labels=dict(beta='β')),
-            style={'width': '33%', 'display': 'inline-block'}
-        ),
-        dcc.Graph(
-            id = f'{k} - 3H',
-            figure = px.scatter(plot_data[k], x='beta', y='entropy',
-                       log_x=LOG_X, log_y=False, range_x=x_lims,
-                       title='3B', labels=dict(beta='β', entropy='Norm H')),
-            style={'width': '33%', 'display': 'inline-block'}
-        ),
-        dcc.Graph(
-            id = f'{k} - mean_number',
-            figure = px.scatter(plot_data[k], x='beta', y='mean_num_nets',
-                       log_x=LOG_X, log_y=False, range_x=x_lims,
-                       title='Número medio redes', labels=dict(beta='β', mean_num_nets='Mean N(R)')),
-            style={'width': '33%', 'display': 'inline-block'}
-        )
-    ]) for k in ['5', '1', '0.1', '0.01']
+    dcc.Tabs([
+        dcc.Tab(label='Linear beta', children=html.Div([
+            html.Div([
+                html.P(f'K = {k}'),
+                dcc.Graph(
+                    id = f'{k} - 2H - linear',
+                    figure = px.scatter(plot_data[k], x='beta', y='# Configs',
+                            log_x=False, log_y=True, range_x=[0,3],
+                            title='2H', labels=dict(beta='β')),
+                    style={'width': '33%', 'display': 'inline-block'}
+                ),
+                dcc.Graph(
+                    id = f'{k} - 3H - linear',
+                    figure = px.scatter(plot_data[k], x='beta', y='entropy',
+                            log_x=False, log_y=False, range_x=[0,3],
+                            title='3B', labels=dict(beta='β', entropy='Norm H')),
+                    style={'width': '33%', 'display': 'inline-block'}
+                ),
+                dcc.Graph(
+                    id = f'{k} - mean_number - linear',
+                    figure = px.scatter(plot_data[k], x='beta', y='mean_num_nets',
+                            log_x=False, log_y=False, range_x=[0,3],
+                            title='Número medio redes', labels=dict(beta='β', mean_num_nets='Mean N(R)')),
+                    style={'width': '33%', 'display': 'inline-block'}
+                )
+            ])
+        for k in ['5', '1', '0.1', '0.01']])),
+        dcc.Tab(label='Log beta', children=html.Div([
+            html.Div([
+                html.P(f'K = {k}'),
+                dcc.Graph(
+                    id = f'{k} - 2H - log',
+                    figure = px.scatter(plot_data[k], x='beta', y='# Configs',
+                            log_x=True, log_y=True,
+                            title='2H', labels=dict(beta='β')),
+                    style={'width': '33%', 'display': 'inline-block'}
+                ),
+                dcc.Graph(
+                    id = f'{k} - 3H - log',
+                    figure = px.scatter(plot_data[k], x='beta', y='entropy',
+                            log_x=True, log_y=False,
+                            title='3B', labels=dict(beta='β', entropy='Norm H')),
+                    style={'width': '33%', 'display': 'inline-block'}
+                ),
+                dcc.Graph(
+                    id = f'{k} - mean_number - log',
+                    figure = px.scatter(plot_data[k], x='beta', y='mean_num_nets',
+                            log_x=True, log_y=False,
+                            title='Número medio redes', labels=dict(beta='β', mean_num_nets='Mean N(R)')),
+                    style={'width': '33%', 'display': 'inline-block'}
+                )
+            ])
+        for k in ['5', '1', '0.1', '0.01']]))
+    ])
 ])
 
 if __name__ == '__main__':
