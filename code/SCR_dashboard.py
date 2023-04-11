@@ -10,8 +10,6 @@ from scipy.stats import entropy
 from matlab_utils import *
 
 ### Data loading ###
-networks, measures = load_meta_networld()
-
 os.chdir('/home/kiaran/Desktop/Ciencia_de_Datos/TFM/CAB_Complejidad/code/networld_matlab/')
 base_path = '../../data/Networld_N40_TMax5000_Kinetics_Binomial_'
 

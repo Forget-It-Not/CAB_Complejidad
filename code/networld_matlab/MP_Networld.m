@@ -15,6 +15,8 @@ function [Networks_Time] = MP_Networld(N, beta, T_max)
 
 metadata_path = '../../data/networld_metadata.mat';
 load(metadata_path)
+%backup_path = '../../data/backup_metadata.mat';
+%save(backup_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures', '-v7.3')
 
 %% Initial variables
 % net_ids: vector with the id of each network (id of single node = 1)
@@ -38,7 +40,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
     % P = equal(ones(N)) ~ no new union is possible
 
     binom_n = (num_nets-1)*(num_nets-1);
-    binom_p = 0.01/N;
+    binom_p = 5/N;
     num_unions = binornd(binom_n, binom_p);
 
     for i = 1:num_unions
@@ -95,7 +97,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
 
 end
 
-save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
+save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures', '-v7.3')
 
 end
 
