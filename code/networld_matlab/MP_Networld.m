@@ -1,4 +1,4 @@
-function [Networks_Time] = MP_Networld(N, beta, T_max)
+function [Networks_Time, nunions_time] = MP_Networld(N, beta, T_max)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MP_Networld: Main Program that computes a networld simulation
@@ -29,6 +29,7 @@ num_nets = N;
 
 % Initial time, network id and nº copies are all 1s for the first step
 Networks_Time = [ones(N,1),net_ids(:),ones(N,1)];
+nunions_time = [];
 
 % P: vector with Pi=1 if network i has already participated in a union this point in time
 P = zeros(1,N);
@@ -40,9 +41,10 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
     % P = equal(ones(N)) ~ no new union is possible
 
     binom_n = (num_nets-1)*(num_nets-1);
-    binom_p = 5/N;
+    binom_p = 10/N;
     num_unions = binornd(binom_n, binom_p);
 
+    final_nunion = 0;
     for i = 1:num_unions
         if all(P(:)==1)
             break
@@ -77,7 +79,11 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
         net_mats{R1} = T_mat;
         net_ids(R2) = nan;
         net_mats{R2} = [];
+
+        final_nunion = final_nunion +1;
     end
+
+    nunions_time(end+1) = final_nunion;
 
     empty_idx = isnan(net_ids);
     net_ids(empty_idx) = [];
@@ -97,7 +103,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
 
 end
 
-save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures', '-v7.3')
+save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
 
 end
 

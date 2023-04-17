@@ -63,7 +63,7 @@ for i = 1:Num_Netw
                 % Network identifier is current number of networks +1
                 new_id = size(Networks_Measures,1) +1;
                 Networks_Measures(new_id,:) = new_meas;
-                Networks_Unique{new_id} = new_networks{j};
+                %Networks_Unique{new_id} = new_networks{j};
                 % The key will always be of type Key(i) = i until the metadata
                 % is sorted
                 Networks_Key(new_id) = new_id;
