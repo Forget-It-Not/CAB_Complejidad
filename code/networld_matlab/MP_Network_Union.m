@@ -74,7 +74,7 @@ if present == 0
     % Network identifier is current number of networks +1
     T_id = size(Networks_Measures,1) +1;
     Networks_Measures(T_id,:) = T_meas;
-    %Networks_Unique{T_id} = T_mat;
+    Networks_Unique{T_id} = T_mat;
     % The key will always be of type Key(i) = i until the metadata
     % is sorted
     Networks_Key(T_id) = T_id;

@@ -1,4 +1,4 @@
-function [Networks_Time, nunions_time] = MP_Networld(N, beta, T_max)
+function Networks_Time = MP_Networld(N, beta, T_max)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MP_Networld: Main Program that computes a networld simulation
@@ -15,8 +15,6 @@ function [Networks_Time, nunions_time] = MP_Networld(N, beta, T_max)
 
 metadata_path = '../../data/networld_metadata.mat';
 load(metadata_path)
-%backup_path = '../../data/backup_metadata.mat';
-%save(backup_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures', '-v7.3')
 
 %% Initial variables
 % net_ids: vector with the id of each network (id of single node = 1)
