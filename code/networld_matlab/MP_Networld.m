@@ -41,7 +41,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
     % P = equal(ones(N)) ~ no new union is possible
 
     binom_n = (num_nets-1)*(num_nets-1);
-    binom_p = 10/N;
+    binom_p = 5/N;
     num_unions = binornd(binom_n, binom_p);
 
     final_nunion = 0;

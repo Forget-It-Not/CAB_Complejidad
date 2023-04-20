@@ -14,7 +14,7 @@ os.chdir('/home/kiaran/Desktop/Ciencia_de_Datos/TFM/CAB_Complejidad/code/networl
 base_path = '../../data/Networld_N40_TMax5000_Kinetics_Binomial_'
 
 plot_data = {}
-for k in ['5', '1', '0.1', '0.01']:
+for k in ['20','10', '5', '1', '0.1', '0.01']:
 
     data_path = base_path + f'K{k}/'
 
@@ -80,7 +80,7 @@ app.layout = html.Div([
                     style={'width': '33%', 'display': 'inline-block'}
                 )
             ])
-        for k in ['5', '1', '0.1', '0.01']])),
+        for k in ['20','10','5', '1', '0.1', '0.01']])),
         dcc.Tab(label='Log beta', children=html.Div([
             html.Div([
                 html.P(f'K = {k}'),
@@ -106,7 +106,7 @@ app.layout = html.Div([
                     style={'width': '33%', 'display': 'inline-block'}
                 )
             ])
-        for k in ['5', '1', '0.1', '0.01']]))
+        for k in ['20','10','5', '1', '0.1', '0.01']]))
     ])
 ])
 
