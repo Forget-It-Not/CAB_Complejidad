@@ -2,42 +2,37 @@ function SCR_Process_Simulations(data_path)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SCR_Process_Simulations: script for processing the RAW output of a batch
-% of networld simulations (an experiment of sorts)
+% of networld simulations
 
 % Input variables:
 %   data_path: CHAR
 %       Folder where RAW output is stored
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Load global network metadata
+% Load global metadata (equivalence between networks and measures)
 metadata_path = '~/Desktop/Ciencia_de_Datos/TFM/CAB_Complejidad/data/networld_metadata.mat';
-load(metadata_path)
+load(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
 
-% Load RAW output
-raw_sims = {};
 raw_files = dir(fullfile(data_path, 'RAW*.mat'));
 for i=1:length(raw_files)
+
+    % Load RAW networld output
     name = raw_files(i).name;
-    disp(strcat('Loading file: ', name, '...'))
+    disp(strcat('Processing file: ', name))
     file = strcat(data_path, name);
-    load(file);
-    raw_sims{end+1} = Networks;
-end
+    load(file, 'Networks');
 
-disp 'Auxiliary data processing'
-tic
-[Networks_Unique, Networks_Measures, Simulations_Time] = AUX_Process_RAW(raw_sims);
-toc
-
-% Save metadata that is common for all simulations (set of networks that
-% appeared and their corresponding measures)
-save(strcat(data_path, 'network_metadata.mat'), 'Networks_Unique', 'Networks_Measures')
-
-% For each simulation save the processed network profile over time
-for i=1:length(Simulations_Time)
-    name = raw_files(i).name;
-    Networks_Time = Simulations_Time{i};
+    % Auxiliary data processing
+    %   Networks found in the simulation are matched to the global metadata
+    %   If the networks wasn't present the metadata is updated
+    tic
+    [Networks_Time, Networks_Key, Networks_Unique, Networks_Measures] = AUX_Process_RAW(Networks, Networks_Key, Networks_Unique, Networks_Measures);
     save(strcat(data_path, 'SRC_', name), "Networks_Time")
+    toc
 end
+
+% The updated metadata is saved 
+disp(strcat('Updated metadata includes ', num2str(length(Networks_Key)), ' networks'))
+save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
 
 end

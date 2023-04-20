@@ -1,9 +1,10 @@
-function Networks_Time = MP_Networld(N, beta, T_max)
+function Networks_Time = MP_Networld(N, k, beta, T_max)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MP_Networld: Main Program that computes a networld simulation
 % Input variables:
 %   N: Number of initial Nodes
+%   k: general union rate 
 %   beta: Enviromental-Temperature factor
 %   T_Max: Max. allowed steps
 
@@ -39,7 +40,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
     % P = equal(ones(N)) ~ no new union is possible
 
     binom_n = (num_nets-1)*(num_nets-1);
-    binom_p = 5/N;
+    binom_p = k/N;
     num_unions = binornd(binom_n, binom_p);
 
     final_nunion = 0;
@@ -101,7 +102,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
 
 end
 
-save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
+save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures', '-v7.3')
 
 end
 
