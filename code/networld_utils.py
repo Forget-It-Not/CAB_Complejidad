@@ -1,5 +1,6 @@
 from scipy.io import loadmat
 #from mat73 import loadmat
+import os
 import numpy as np
 import pandas as pd
 
@@ -40,3 +41,36 @@ def load_meta_networld(
                                         columns=['N', 'Lamb1', 'Lamb2', 'mu', 'GrMedio', 'H'])
     measures['NRed'] = mat['Networks_Key'][0] - 1
     return networks, measures
+
+def compute_abundance(
+        networks_time: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Computes abundances from a Networks Time table (SRC output of Networld).
+    """
+    abdata = networks_time.groupby('NRed')['NRep'].sum().reset_index()
+    abdata.rename(columns=dict(NRep = 'Ab'), inplace=True)
+    abdata['Ab'] = abdata['Ab'] / abdata['Ab'].sum()
+    return abdata
+
+def src_to_abd(
+        path: str
+) -> None:
+    """
+    Computes abundance data from the set of SRC Networld outputs present in a folder.
+    """
+    nt_list = []
+    for data_file in os.listdir(path):
+        info = data_file[:-4].split('_')
+        if info[0] != 'SRC':
+            continue
+        beta = info[3][4:]
+        rep = info[5][3:]
+        data_file = path + data_file
+        src = pd.read_csv(data_file)
+        src['beta'] = float(beta)
+        src['rep'] = int(rep)
+        nt_list.append(src)
+    
+    nt_data = pd.concat(nt_list)
+    ab_data = compute_abundance(nt_data)

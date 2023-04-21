@@ -44,7 +44,8 @@ for ni = nrep
     % Storing RAW Output
     cd(out_path)
     File_Name = strcat('SRC_N', num2str(Ni), '_K', num2str(ki), '_Beta', num2str(betai), '_TMax', num2str(T_Maxi), '_Rep', num2str(ni), '.mat');
-    save(File_Name, 'Networks_Time')
+    Networks_Time = array2table(Networks_Time, 'VariableNames', {'t', 'NRed', 'NRep'});
+    writetable(Networks_Time, File_Name);
     cd(code_path)
 
 end
