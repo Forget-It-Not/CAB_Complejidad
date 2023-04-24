@@ -36,7 +36,7 @@ for i = 1:Num_Netw
     if isinf(beta)
         p(i) = 0;
     else
-        p(i) = 2*exp(-beta*mu)/(1+exp(-beta*mu));
+        p(i) = exp(-beta*mu);
     end
     x = binornd(1, p(i)); % Sample 0/1 according to the probability
     if x == 1 && n>1 %Partition of the network
