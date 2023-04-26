@@ -43,7 +43,7 @@ def load_meta_networld(
     return networks, measures
 
 def compute_abundance(
-        nt_list: list(pd.DataFrame)
+        nt_list: list()
 ) -> pd.DataFrame:
     """
     Computes abundances from a a list of Network_Times table.
