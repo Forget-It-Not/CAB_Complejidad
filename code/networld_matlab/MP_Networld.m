@@ -102,7 +102,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
 
 end
 
-save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures', '-v7.3')
+save(metadata_path, 'Networks_Key', 'Networks_Unique', 'Networks_Measures')
 
 end
 
