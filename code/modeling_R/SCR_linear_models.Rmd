@@ -1,0 +1,1879 @@
+---
+title: "SCR_Linear_Models"
+author: "MMJ"
+date: "5/21/2023"
+output: html_document
+---
+
+# Carga de modulos
+```{r}
+# Data manipulation
+require(tidyverse)
+# Metrics
+require(MetricsWeighted)
+# CV for GLMs 
+require(glmnet)
+# GAMs
+require(mgcv)
+require(gratia)
+# Plotting
+require(ggplot2)
+require(fmsb)
+require(scales)
+```
+
+# Carga de datos
+
+```{r}
+trn <- read.csv('../../data/Networld_N200_TMax10000/TRN_MEAS_BP.csv')
+colnames(trn) <- c("NRed","Ab","beta","Size","Lambda1","Lambda2","mu","Gr_Medio","H","AI",
+                   "log.Size","log.Lambda1","log.Lambda2","log.mu","log.Gr_Medio","log.H","log.AI",
+                   "log.Ab","log.beta")
+nred <- trn$NRed
+ytr <- trn$log.Ab
+
+trn <- trn %>% select(-Ab, -log.Ab, -NRed)
+
+wt <- read.csv('../../data/Networld_N200_TMax10000/TRN_sample_weights_BP.csv', header = FALSE)
+wt <- wt$V1
+```
+
+```{r}
+trn <- scale(trn)
+means <- attr(trn, "scaled:center")
+stds <- attr(trn, "scaled:scale")
+trn <- as.data.frame(trn)
+```
+
+
+# GLM Ridge NULL
+
+## Entrenamiento
+```{r}
+# glmnet needs a predictor matrix and response variable
+trn <- trn %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H)
+idx <- complete.cases(trn)
+trn <- as.matrix(trn[idx,  ])
+ytr <- ytr[idx]
+
+null.fit <- cv.glmnet(trn, ytr, nfolds=5, alpha=0, standarize=F, trace.it=1)
+#save(ridge.fit, file = "../../models/BP_MEAS_linear_ridge_full_CV.RData")
+```
+
+## Resultados CV
+
+```{r}
+cv.results <- data.frame(null.fit$lambda, null.fit$cvm, null.fit$cvsd, null.fit$nzero, null.fit$glmnet.fit$a0)
+colnames(cv.results) <- c("lambda", "MSE", "std", "NZero", "Intercept")
+coefs <- t(null.fit$glmnet.fit$beta)
+coefs <- as.data.frame(as.matrix(coefs))
+cv.results <- cbind(cv.results, coefs)
+```
+
+```{r}
+print(null.fit)
+index.min = 100
+index.1se = 87
+```
+
+```{r}
+ggplot(data=cv.results) + 
+  geom_errorbar(aes(x=lambda, ymin=MSE-std, ymax=MSE+std), col="black") +
+  geom_point(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_line(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_vline(aes(xintercept=null.fit$lambda.min), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=null.fit$lambda.min, y=null.fit$cvm[index.min]), col="red") + 
+  geom_hline(aes(yintercept=null.fit$cvm[index.min]+null.fit$cvsd[index.min]), col="red", linetype="dashed") +
+  annotate("text", x = null.fit$lambda.min, y=-Inf, label="I\n0.1686", col="red", lineheight = .8, vjust = .8) +
+  geom_vline(aes(xintercept=null.fit$lambda.1se), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=null.fit$lambda.1se, y=null.fit$cvm[index.1se]), col="red") + 
+  annotate("text", x = null.fit$lambda.1se, y=-Inf, label="I\n0.5652", col="red", lineheight = .8, vjust = .8) +
+  scale_x_log10() + 
+  xlab(expression(lambda)) +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+```
+
+```{r}
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Coefficient", values_to="Value") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Value, col=Coefficient)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+```
+
+## Análisis modelo
+```{r}
+print('Coefficients of GLM Ridge Full: ')
+coef(null.fit)
+
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Coefficient", values_to="Value") %>% 
+  filter(lambda == null.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Coefficient, y=Value, fill=Coefficient), col='black') + 
+  xlab("Coefficients") +
+  theme_linedraw() 
+
+```
+
+```{r}
+max.coefs <- rep(max(cv.results %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>% abs), 7)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+min.coefs <- rep(0, 7)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(cv.results %>% 
+  filter(lambda == null.fit$lambda.1se) %>%
+  select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  lapply(abs) %>% as.data.frame) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.4,0.1), title="Abs(Coefs)")
+```
+
+```{r}
+val.mse <- null.fit$cvm[index.1se]
+cat("Validation RMSE: ", sqrt(val.mse), "\n\n")
+
+yp = predict(null.fit, newx=trn)
+rmse <- rmse(ytr, yp)
+cat("Train RMSE: ", rmse, "\n")
+r2 <- r_squared(ytr, yp)
+cat("Train R2: " , r2)
+```
+
+```{r}
+corr.plot <- data.frame(ytr, yp)
+corr.plot$ytr <- 10**corr.plot$ytr
+corr.plot$lambda.1se <- 10**corr.plot$lambda.1se
+colnames(corr.plot) <- c("True", "Predicted")
+
+ggplot(data=corr.plot) + 
+  geom_point(aes(x=True,y=Predicted), col='dodgerblue3') +
+  geom_smooth(aes(x=True,y=Predicted), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted), col='black') +
+  geom_smooth(aes(x=True,y=Predicted), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+```
+
+
+
+# GLM Ridge Full
+
+## Entrenamiento
+```{r}
+# glmnet needs a predictor matrix and response variable
+trn <- trn %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H)
+idx <- complete.cases(trn)
+trn <- as.matrix(trn[idx,  ])
+ytr <- ytr[idx]
+wt <- wt[idx]
+
+#ridge.fit <- cv.glmnet(trn, ytr, weights=wt, nfolds=5, alpha=0, standarize=F, trace.it=1)
+#save(ridge.fit, file = "../../models/BP_MEAS_linear_ridge_full_CV.RData")
+```
+
+```{r}
+load("../../models/BP_MEAS_linear_ridge_full_CV.RData")
+```
+
+
+## Resultados CV
+
+```{r}
+cv.results <- data.frame(ridge.fit$lambda, ridge.fit$cvm, ridge.fit$cvsd, ridge.fit$nzero, ridge.fit$glmnet.fit$a0)
+colnames(cv.results) <- c("lambda", "MSE", "std", "NZero", "Intercept")
+coefs <- t(ridge.fit$glmnet.fit$beta)
+coefs <- as.data.frame(as.matrix(coefs))
+cv.results <- cbind(cv.results, coefs)
+```
+
+```{r}
+print(ridge.fit)
+index.min = 100
+index.1se = 87
+```
+
+```{r}
+ggplot(data=cv.results) + 
+  geom_errorbar(aes(x=lambda, ymin=MSE-std, ymax=MSE+std), col="black") +
+  geom_point(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_line(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_vline(aes(xintercept=ridge.fit$lambda.min), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=ridge.fit$lambda.min, y=ridge.fit$cvm[index.min]), col="red") + 
+  geom_hline(aes(yintercept=ridge.fit$cvm[index.min]+ridge.fit$cvsd[index.min]), col="red", linetype="dashed") +
+  annotate("text", x = ridge.fit$lambda.min, y=-Inf, label="I\n0.1686", col="red", lineheight = .8, vjust = .8) +
+  geom_vline(aes(xintercept=ridge.fit$lambda.1se), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=ridge.fit$lambda.1se, y=ridge.fit$cvm[index.1se]), col="red") + 
+  annotate("text", x = ridge.fit$lambda.1se, y=-Inf, label="I\n0.5652", col="red", lineheight = .8, vjust = .8) +
+  scale_x_log10() + 
+  xlab(expression(lambda)) +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_CV.png', width=6, height=4)
+```
+
+```{r}
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Coefficient", values_to="Value") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Value, col=Coefficient)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_Path.png', width=6, height=4)
+```
+
+## Análisis modelo
+```{r}
+print('Coefficients of GLM Ridge Full: ')
+coef(ridge.fit)
+
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Coefficient", values_to="Value") %>% 
+  filter(lambda == ridge.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Coefficient, y=Value, fill=Coefficient), col='black') + 
+  xlab("Coefficients") +
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_Coefs.png', width=5, height=4)
+```
+
+```{r}
+max.coefs <- rep(max(cv.results %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>% abs), 7)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+min.coefs <- rep(0, 7)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+
+png(filename='../../figures/modeling/GLM_Ridge_Full_AbsCoefs.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(cv.results %>% 
+  filter(lambda == ridge.fit$lambda.1se) %>%
+  select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  lapply(abs) %>% as.data.frame) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.4,0.1), title="Abs(Coefs)")
+dev.off()
+```
+
+
+```{r}
+x <- c()
+y <- c()
+varName <- c()
+
+coefs <- c(values = matrix(coef(ridge.fit)))
+names(coefs) <- dimnames(coef(ridge.fit))[[1]]
+for (var in c("log.beta","log.Size","Lambda1","Lambda2","mu","Gr_Medio","H")){
+  min.val <- min(trn[, var])*stds[var] +  means[var]
+  max.val <- max(trn[, var])*stds[var] +  means[var] 
+  min.lt <- min.val*coefs[var]
+  max.lt <- max.val*coefs[var]
+  x <- c(x, min.val, max.val)
+  y <- c(y, min.lt, max.lt)
+  varName <- c(varName, var, var)
+}
+
+plot.data <- as.data.frame(cbind(x,y,varName))
+plot.data <- data.frame(lapply(plot.data, type.convert))
+
+ggplot(data=plot.data) + 
+  facet_wrap(vars(varName), nrow=2,ncol=4, scales = "free_x", switch = "x") + 
+  geom_line(aes(x=x, y=y, col=varName)) + 
+  xlab("Variable") + 
+  ylab("Linear Term") +
+  theme_linedraw()
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_LTs.png', width=7, height=4)
+```
+
+```{r}
+val.mse <- ridge.fit$cvm[index.1se]
+cat("Validation RMSE: ", sqrt(val.mse), "\n\n")
+
+yp = predict(ridge.fit, newx=trn)
+rmse <- rmse(ytr, yp, w=wt)
+cat("Train RMSE: ", rmse, "\n")
+r2 <- r_squared(ytr, yp, w=wt)
+cat("Train R2: " , r2)
+```
+
+```{r}
+corr.plot <- data.frame(ytr, yp, wt)
+corr.plot$ytr <- 10**corr.plot$ytr
+corr.plot$lambda.1se <- 10**corr.plot$lambda.1se
+colnames(corr.plot) <- c("True", "Predicted", "Weight")
+
+ggplot(data=corr.plot) + 
+  geom_point(aes(x=True,y=Predicted, size=Weight, alpha=Weight), col='dodgerblue3') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_CorrReg.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted, weight=Weight), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_CorrDens.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_CorrCount.png', width=5, height=4)
+```
+
+
+# GLM Lasso Full
+
+## Entrenamiento
+```{r}
+# glmnet needs a predictor matrix and response variable
+#trn <- trn %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H)
+#idx <- complete.cases(trn)
+#trn <- as.matrix(trn[idx,  ])
+#ytr <- ytr[idx]
+#wt <- wt[idx]
+
+#lasso.fit <- cv.glmnet(trn, ytr, weights=wt, nfolds=5, alpha=1, standarize=F, trace.it=1)
+#save(lasso.fit, file = "../../models/BP_MEAS_linear_lasso_full_CV.RData")
+```
+
+```{r}
+load("../../models/BP_MEAS_linear_lasso_full_CV.RData")
+```
+
+## Resultados CV
+
+```{r}
+cv.results <- data.frame(lasso.fit$lambda, lasso.fit$cvm, lasso.fit$cvsd, lasso.fit$nzero, lasso.fit$glmnet.fit$a0)
+colnames(cv.results) <- c("lambda", "MSE", "std", "NZero", "Intercept")
+coefs <- t(lasso.fit$glmnet.fit$beta)
+coefs <- as.data.frame(as.matrix(coefs))
+cv.results <- cbind(cv.results, coefs)
+```
+
+```{r}
+print(lasso.fit)
+index.min = 68
+index.1se = 30
+```
+
+```{r}
+ggplot(data=cv.results) + 
+  geom_errorbar(aes(x=lambda, ymin=MSE-std, ymax=MSE+std), col="black") +
+  geom_point(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_line(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_vline(aes(xintercept=lasso.fit$lambda.min), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=lasso.fit$lambda.min, y=lasso.fit$cvm[index.min]), col="red") + 
+  geom_hline(aes(yintercept=lasso.fit$cvm[index.min]+lasso.fit$cvsd[index.min]), col="red", linetype="dashed") +
+  annotate("text", x = lasso.fit$lambda.min, y=-Inf, label="I\n0.00331", col="red", lineheight = .8, vjust = .8) +
+  geom_vline(aes(xintercept=lasso.fit$lambda.1se), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=lasso.fit$lambda.1se, y=lasso.fit$cvm[index.1se]), col="red") + 
+  annotate("text", x = lasso.fit$lambda.1se, y=-Inf, label="I\n0.11356", col="red", lineheight = .8, vjust = .8) +
+  scale_x_log10() + 
+  xlab(expression(lambda)) +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_CV.png', width=6, height=4)
+```
+
+```{r}
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Coefficient", values_to="Value") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Value, col=Coefficient)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Path.png', width=6, height=4)
+```
+
+```{r}
+cv.results %>% 
+  select(MSE, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!MSE, names_to="Coefficient", values_to="Value") %>%
+  ggplot() + 
+  geom_line(aes(x=MSE, y=Value, col=Coefficient)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab("MSE") +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_PathError.png', width=6, height=4)
+```
+
+## Análisis modelo
+```{r}
+print('Coefficients of GLM lasso Full: ')
+coef(lasso.fit)
+
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Coefficient", values_to="Value") %>% 
+  filter(lambda == lasso.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Coefficient, y=Value, fill=Coefficient), col='black') + 
+  xlab("Coefficients") +
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Coefs.png', width=5, height=4)
+```
+
+```{r}
+max.coefs <- rep(max(cv.results %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>% abs), 7)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+min.coefs <- rep(0, 7)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+
+png(filename='../../figures/modeling/GLM_Lasso_Full_AbsCoefs.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(cv.results %>% 
+  filter(lambda == lasso.fit$lambda.1se) %>%
+  select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  lapply(abs) %>% as.data.frame) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.4,0.1), title="Abs(Coefs)")
+dev.off()
+```
+
+```{r}
+val.mse <- lasso.fit$cvm[index.1se]
+cat("Validation RMSE: ", sqrt(val.mse), "\n\n")
+
+yp = predict(lasso.fit, newx=trn)
+rmse <- rmse(ytr, yp, w=wt)
+cat("Train RMSE: ", rmse, "\n")
+r2 <- r_squared(ytr, yp, w=wt)
+cat("Train R2: " , r2)
+```
+
+```{r}
+corr.plot <- data.frame(ytr, yp, wt)
+corr.plot$ytr <- 10**corr.plot$ytr
+corr.plot$lambda.1se <- 10**corr.plot$lambda.1se
+colnames(corr.plot) <- c("True", "Predicted", "Weight")
+
+ggplot(data=corr.plot) + 
+  geom_point(aes(x=True,y=Predicted, size=Weight, alpha=Weight), col='dodgerblue3') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_CorrReg.png', width=5, height=4)
+
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted, weight=Weight), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_CorrDens.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=-8, y=0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  xlim(-9,1) +
+  ylim(-9,1) +
+  theme_linedraw() +
+  coord_fixed()
+```
+
+
+# GLM Ridge Full Interact
+
+## Entrenamiento
+```{r}
+trn <- read.csv('../../data/Networld_N200_TMax10000/TRN_MEAS_BP.csv')
+colnames(trn) <- c("NRed","Ab","beta","Size","Lambda1","Lambda2","mu","Gr_Medio","H","AI",
+                   "log.Size","log.Lambda1","log.Lambda2","log.mu","log.Gr_Medio","log.H","log.AI",
+                   "log.Ab","log.beta")
+nred <- trn$NRed
+ytr <- trn$log.Ab
+
+trn <- trn %>% select(-Ab, -log.Ab, -NRed)
+
+wt <- read.csv('../../data/Networld_N200_TMax10000/TRN_sample_weights_BP.csv', header = FALSE)
+wt <- wt$V1
+
+trn <- scale(trn)
+means <- attr(trn, "scaled:center")
+stds <- attr(trn, "scaled:scale")
+trn <- as.data.frame(trn)
+
+
+
+trn <- trn %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) 
+idx <- complete.cases(trn)
+trn <- model.matrix(~ .^2, data=trn)[,-1]
+
+ytr <- ytr[idx]
+wt <- wt[idx]
+
+#ridge.int.fit <- cv.glmnet(trn, ytr, weights=wt, nfolds=5, alpha=0, standarize=F, trace.it=1)
+#save(ridge.int.fit, file = "../../models/BP_MEAS_linear_ridge_int_full_CV.RData")
+```
+
+```{r}
+load("../../models/BP_MEAS_linear_ridge_int_full_CV.RData")
+```
+
+
+## Resultados CV
+
+```{r}
+cv.results <- data.frame(ridge.int.fit$lambda, ridge.int.fit$cvm, ridge.int.fit$cvsd, ridge.int.fit$nzero, ridge.int.fit$glmnet.fit$a0)
+colnames(cv.results) <- c("lambda", "MSE", "std", "NZero", "Intercept")
+coefs <- t(ridge.int.fit$glmnet.fit$beta)
+coefs <- as.data.frame(as.matrix(coefs))
+cv.results <- cbind(cv.results, coefs)
+```
+
+```{r}
+print(ridge.int.fit)
+index.min = 100
+index.1se = 99
+```
+
+```{r}
+ggplot(data=cv.results) + 
+  geom_errorbar(aes(x=lambda, ymin=MSE-std, ymax=MSE+std), col="black") +
+  geom_point(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_line(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_vline(aes(xintercept=ridge.int.fit$lambda.min), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=ridge.int.fit$lambda.min, y=ridge.int.fit$cvm[index.min]), col="red") + 
+  geom_hline(aes(yintercept=ridge.int.fit$cvm[index.min]+ridge.int.fit$cvsd[index.min]), col="red", linetype="dashed") +
+  annotate("text", x = ridge.int.fit$lambda.min, y=-Inf, label="I\n0.1686", col="red", lineheight = .8, vjust = .8) +
+  geom_vline(aes(xintercept=ridge.int.fit$lambda.1se), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=ridge.int.fit$lambda.1se, y=ridge.int.fit$cvm[index.1se]), col="red") + 
+  annotate("text", x = ridge.int.fit$lambda.1se, y=-Inf, label="I\n0.5652", col="red", lineheight = .8, vjust = .8) +
+  scale_x_log10() + 
+  xlab(expression(lambda)) +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_Interact_CV.png', width=6, height=4)
+```
+
+```{r}
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Variables", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Coefficients, col=Variables)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_Interact_CoefPath.png', width=6, height=4)
+
+cv.results %>% 
+  select(lambda, contains(":")) %>%
+  pivot_longer(!lambda, names_to="Interactions", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Coefficients, col=Interactions)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_Interact_InteractPath.png', width=6, height=4)
+```
+
+## Análisis modelo
+```{r}
+print('Coefficients of GLM Ridge Full Interactions: ')
+coef(ridge.int.fit)
+
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Variables", values_to="Coefficients") %>% 
+  filter(lambda == ridge.int.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Variables, y=Coefficients, fill=Variables), col='black') + 
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_Interact_Coefs.png', width=5, height=4)
+
+cv.results %>% 
+  select(lambda, contains(":")) %>%
+  pivot_longer(!lambda, names_to="Interactions", values_to="Coefficients") %>% 
+  filter(lambda == ridge.int.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Interactions, y=Coefficients, fill=Interactions), col='black') + 
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_Interact_Interacts.png', width=5, height=4)
+```
+
+```{r}
+max.coefs <- rep(max(cv.results %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>% abs), 7)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+min.coefs <- rep(0, 7)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+
+png(filename='../../figures/modeling/GLM_Ridge_Full_Interact_AbsCoefs.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(cv.results %>% 
+  filter(lambda == ridge.int.fit$lambda.1se) %>%
+  select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  lapply(abs) %>% as.data.frame) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.4,0.1), title="Abs(Coefs)")
+dev.off()
+
+this.df <- cv.results %>% 
+  filter(lambda == ridge.int.fit$lambda.1se) %>%
+  select(contains(":")) 
+this.colnames <- colnames(this.df)
+this.df <- this.df %>%
+  lapply(abs) %>% as.data.frame()
+colnames(this.df) <- this.colnames
+max.coefs <- rep(max(cv.results %>% select(contains(":")) %>% abs), 21)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- this.colnames
+min.coefs <- rep(0, 21)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- this.colnames
+
+png(filename='../../figures/modeling/GLM_Ridge_Full_Interact_AbsInteracts.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(this.df) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.05,0.01), title="Abs(Coefs)")
+dev.off()
+```
+
+
+
+```{r}
+val.mse <- ridge.int.fit$cvm[index.1se]
+cat("Validation RMSE: ", sqrt(val.mse), "\n\n")
+
+yp = predict(ridge.int.fit, newx=trn)
+rmse <- rmse(ytr, yp, w=wt)
+cat("Train RMSE: ", rmse, "\n")
+r2 <- r_squared(ytr, yp, w=wt)
+cat("Train R2: " , r2)
+```
+
+```{r}
+corr.plot <- data.frame(ytr, yp, wt)
+corr.plot$ytr <- 10**corr.plot$ytr
+corr.plot$lambda.1se <- 10**corr.plot$lambda.1se
+colnames(corr.plot) <- c("True", "Predicted", "Weight")
+
+ggplot(data=corr.plot) + 
+  geom_point(aes(x=True,y=Predicted, size=Weight, alpha=Weight), col='dodgerblue3') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_Interact_CorrReg.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted, weight=Weight), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GLM_Ridge_Full_Interact_CorrDens.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=-8, y=0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  xlim(-9,1) +
+  ylim(-9,1) +
+  theme_linedraw() +
+  coord_fixed()
+```
+
+
+# GLM Lasso Full Interact
+
+## Entrenamiento
+```{r}
+#trn <- trn %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) 
+#idx <- complete.cases(trn)
+#trn <- model.matrix(~ .^2, data=trn)[,-1]
+
+#ytr <- ytr[idx]
+#wt <- wt[idx]
+
+#lasso.int.fit <- cv.glmnet(trn, ytr, weights=wt, nfolds=5, alpha=1, standarize=F, trace.it=1)
+#save(lasso.int.fit, file = "../../models/BP_MEAS_linear_lasso_int_full_CV.RData")
+```
+
+```{r}
+load("../../models/BP_MEAS_linear_lasso_int_full_CV.RData")
+```
+
+
+## Resultados CV
+
+```{r}
+cv.results <- data.frame(lasso.int.fit$lambda, lasso.int.fit$cvm, lasso.int.fit$cvsd, lasso.int.fit$nzero, lasso.int.fit$glmnet.fit$a0)
+colnames(cv.results) <- c("lambda", "MSE", "std", "NZero", "Intercept")
+coefs <- t(lasso.int.fit$glmnet.fit$beta)
+coefs <- as.data.frame(as.matrix(coefs))
+cv.results <- cbind(cv.results, coefs)
+```
+
+```{r}
+print(lasso.int.fit)
+index.min = 96
+index.1se = 73
+```
+
+```{r}
+ggplot(data=cv.results) + 
+  geom_errorbar(aes(x=lambda, ymin=MSE-std, ymax=MSE+std), col="black") +
+  geom_point(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_line(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_vline(aes(xintercept=lasso.int.fit$lambda.min), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=lasso.int.fit$lambda.min, y=lasso.int.fit$cvm[index.min]), col="red") + 
+  geom_hline(aes(yintercept=lasso.int.fit$cvm[index.min]+lasso.int.fit$cvsd[index.min]), col="red", linetype="dashed") +
+  annotate("text", x = lasso.int.fit$lambda.min, y=-Inf, label="I\n0.00016", col="red", lineheight = .8, vjust = .8) +
+  geom_vline(aes(xintercept=lasso.int.fit$lambda.1se), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=lasso.int.fit$lambda.1se, y=lasso.int.fit$cvm[index.1se]), col="red") + 
+  annotate("text", x = lasso.int.fit$lambda.1se, y=-Inf, label="I\n0.00157", col="red", lineheight = .8, vjust = .8) +
+  scale_x_log10() + 
+  xlab(expression(lambda)) +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Interact_CV.png', width=6, height=4)
+```
+
+```{r}
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Variables", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Coefficients, col=Variables)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Interact_CoefPath.png', width=6, height=4)
+
+cv.results %>% 
+  select(lambda, contains(":")) %>%
+  pivot_longer(!lambda, names_to="Interactions", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Coefficients, col=Interactions)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Interact_InteractPath.png', width=6, height=4)
+```
+
+```{r}
+cv.results %>% 
+  select(MSE, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!MSE, names_to="Variables", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=MSE, y=Coefficients, col=Variables)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab("MSE") +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Interact_CoefPathError.png', width=6, height=4)
+
+cv.results %>% 
+  select(MSE, contains(":")) %>%
+  pivot_longer(!MSE, names_to="Interactions", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=MSE, y=Coefficients, col=Interactions)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab("MSE") +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Interact_InteractPathError.png', width=6, height=4)
+```
+
+## Análisis modelo
+```{r}
+print('Coefficients of GLM lasso Full Interactions: ')
+coef(lasso.int.fit)
+
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Variables", values_to="Coefficients") %>% 
+  filter(lambda == lasso.int.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Variables, y=Coefficients, fill=Variables), col='black') + 
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Interact_Coefs.png', width=5, height=4)
+
+cv.results %>% 
+  select(lambda, contains(":")) %>%
+  pivot_longer(!lambda, names_to="Interactions", values_to="Coefficients") %>% 
+  filter(lambda == lasso.int.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Interactions, y=Coefficients, fill=Interactions), col='black') + 
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Interact_Interacts.png', width=5, height=4)
+```
+
+```{r}
+max.coefs <- rep(max(cv.results %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>% abs), 7)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+min.coefs <- rep(0, 7)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+
+png(filename='../../figures/modeling/GLM_Lasso_Full_Interact_AbsCoefs.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(cv.results %>% 
+  filter(lambda == lasso.int.fit$lambda.1se) %>%
+  select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  lapply(abs) %>% as.data.frame) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.4,0.1), title="Abs(Coefs)")
+dev.off()
+
+this.df <- cv.results %>% 
+  filter(lambda == lasso.int.fit$lambda.1se) %>%
+  select(contains(":")) 
+this.colnames <- colnames(this.df)
+this.df <- this.df %>%
+  lapply(abs) %>% as.data.frame()
+colnames(this.df) <- this.colnames
+max.coefs <- rep(max(cv.results %>% select(contains(":")) %>% abs), 21)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- this.colnames
+min.coefs <- rep(0, 21)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- this.colnames
+
+png(filename='../../figures/modeling/GLM_Lasso_Full_Interact_AbsInteracts.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(this.df) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.05,0.01), title="Abs(Coefs)")
+dev.off()
+```
+
+```{r}
+val.mse <- lasso.int.fit$cvm[index.1se]
+cat("Validation RMSE: ", sqrt(val.mse), "\n\n")
+
+yp = predict(lasso.int.fit, newx=trn)
+rmse <- rmse(ytr, yp, w=wt)
+cat("Train RMSE: ", rmse, "\n")
+r2 <- r_squared(ytr, yp, w=wt)
+cat("Train R2: " , r2)
+```
+
+```{r}
+corr.plot <- data.frame(ytr, yp, wt)
+corr.plot$ytr <- 10**corr.plot$ytr
+corr.plot$lambda.1se <- 10**corr.plot$lambda.1se
+colnames(corr.plot) <- c("True", "Predicted", "Weight")
+
+ggplot(data=corr.plot) + 
+  geom_point(aes(x=True,y=Predicted, size=Weight, alpha=Weight), col='dodgerblue3') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Interact_CorrReg.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted, weight=Weight), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GLM_Lasso_Full_Interact_CorrDens.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=-8, y=0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  xlim(-9,1) +
+  ylim(-9,1) +
+  theme_linedraw() +
+  coord_fixed()
+```
+
+# MLE Ridge Full
+
+## Entrenamiento
+```{r}
+trn <- read.csv('../../data/Networld_N200_TMax10000/TRN_MEAS_BP.csv')
+colnames(trn) <- c("NRed","Ab","beta","Size","Lambda1","Lambda2","mu","Gr_Medio","H","AI",
+                   "log.Size","log.Lambda1","log.Lambda2","log.mu","log.Gr_Medio","log.H","log.AI",
+                   "log.Ab","log.beta")
+nred <- trn$NRed
+ytr <- trn$log.Ab
+
+trn <- trn %>% select(-Ab, -log.Ab, -NRed)
+
+wt <- read.csv('../../data/Networld_N200_TMax10000/TRN_sample_weights_BP.csv', header = FALSE)
+wt <- wt$V1
+
+trn <- scale(trn)
+means <- attr(trn, "scaled:center")
+stds <- attr(trn, "scaled:scale")
+trn <- as.data.frame(trn)
+
+trn <- trn %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) 
+idx <- complete.cases(trn)
+trn <- trn[idx, ] %>% 
+  cbind(model.matrix(~ .:log.beta, data=trn)[,-c(1,2)])
+trn <- as.matrix(trn)
+
+ytr <- ytr[idx]
+wt <- wt[idx]
+
+#ridge.mle.fit <- cv.glmnet(trn, ytr, weights=wt, nfolds=5, alpha=0, standarize=F, trace.it=1)
+#save(ridge.mle.fit, file = "../../models/BP_MEAS_linear_ridge_mle_full_CV.RData")
+```
+
+```{r}
+load("../../models/BP_MEAS_linear_ridge_mle_full_CV.RData")
+```
+
+
+## Resultados CV
+
+```{r}
+cv.results <- data.frame(ridge.mle.fit$lambda, ridge.mle.fit$cvm, ridge.mle.fit$cvsd, ridge.mle.fit$nzero, ridge.mle.fit$glmnet.fit$a0)
+colnames(cv.results) <- c("lambda", "MSE", "std", "NZero", "Intercept")
+coefs <- t(ridge.mle.fit$glmnet.fit$beta)
+coefs <- as.data.frame(as.matrix(coefs))
+cv.results <- cbind(cv.results, coefs)
+```
+
+```{r}
+print(ridge.mle.fit)
+index.min = 100
+index.1se = 97
+```
+
+```{r}
+ggplot(data=cv.results) + 
+  geom_errorbar(aes(x=lambda, ymin=MSE-std, ymax=MSE+std), col="black") +
+  geom_point(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_line(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_vline(aes(xintercept=ridge.mle.fit$lambda.min), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=ridge.mle.fit$lambda.min, y=ridge.mle.fit$cvm[index.min]), col="red") + 
+  geom_hline(aes(yintercept=ridge.mle.fit$cvm[index.min]+ridge.mle.fit$cvsd[index.min]), col="red", linetype="dashed") +
+  annotate("text", x = ridge.mle.fit$lambda.min, y=-Inf, label="I\n0.1686", col="red", lineheight = .8, vjust = .8) +
+  geom_vline(aes(xintercept=ridge.mle.fit$lambda.1se), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=ridge.mle.fit$lambda.1se, y=ridge.mle.fit$cvm[index.1se]), col="red") + 
+  annotate("text", x = ridge.mle.fit$lambda.1se, y=-Inf, label="I\n0.2229", col="red", lineheight = .8, vjust = .8) +
+  scale_x_log10() + 
+  xlab(expression(lambda)) +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/MLE_Ridge_Full_CV.png', width=6, height=4)
+```
+
+```{r}
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Variables", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Coefficients, col=Variables)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/MLE_Ridge_Full_CoefPath.png', width=6, height=4)
+
+cv.results %>% 
+  select(lambda, contains(":")) %>%
+  pivot_longer(!lambda, names_to="Interactions", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Coefficients, col=Interactions)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/MLE_Ridge_Full_InteractPath.png', width=6, height=4)
+```
+
+## Análisis modelo
+```{r}
+print('Coefficients of GLM Ridge Full Interactions: ')
+coef(ridge.mle.fit)
+
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Variables", values_to="Coefficients") %>% 
+  filter(lambda == ridge.mle.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Variables, y=Coefficients, fill=Variables), col='black') + 
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/MLE_Ridge_Full_Coefs.png', width=5, height=4)
+
+cv.results %>% 
+  select(lambda, contains(":")) %>%
+  pivot_longer(!lambda, names_to="Interactions", values_to="Coefficients") %>% 
+  filter(lambda == ridge.mle.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Interactions, y=Coefficients, fill=Interactions), col='black') + 
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/MLE_Ridge_Full_Interacts.png', width=5, height=4)
+```
+
+```{r}
+max.coefs <- rep(max(cv.results %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>% abs), 7)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+min.coefs <- rep(0, 7)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+
+png(filename='../../figures/modeling/MLE_Ridge_Full_AbsCoefs.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(cv.results %>% 
+  filter(lambda == ridge.mle.fit$lambda.1se) %>%
+  select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  lapply(abs) %>% as.data.frame) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.4,0.1), title="Abs(Coefs)")
+dev.off()
+
+this.df <- cv.results %>% 
+  filter(lambda == ridge.mle.fit$lambda.1se) %>%
+  select(contains(":")) 
+this.colnames <- colnames(this.df)
+this.df <- this.df %>%
+  lapply(abs) %>% as.data.frame()
+colnames(this.df) <- this.colnames
+max.coefs <- rep(max(cv.results %>% select(contains(":")) %>% abs), 6)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- this.colnames
+min.coefs <- rep(0, 6)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- this.colnames
+
+png(filename='../../figures/modeling/MLE_Ridge_Full_AbsInteracts.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(this.df) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.05,0.01), title="Abs(Coefs)")
+dev.off()
+```
+
+```{r}
+x <- c()
+y <- c()
+beta <- c()
+varName <- c()
+
+coefs <- c(values = matrix(coef(ridge.mle.fit)))
+names(coefs) <- dimnames(coef(ridge.mle.fit))[[1]]
+for (var in c("log.Size","Lambda1","Lambda2","mu","Gr_Medio","H")){
+  for (lb in c(-3,-2,-1,0,1)){
+    min.val <- min(trn[, var])*stds[var] +  means[var]
+    max.val <- max(trn[, var])*stds[var] +  means[var] 
+    int.name <- paste("log.beta:", var, sep="")
+    b.scaled <- (lb - means["log.beta"])/stds["beta"]
+    min.lt <- min.val*(coefs[var] + coefs[int.name]*b.scaled)
+    max.lt <- max.val*(coefs[var] + coefs[int.name]*b.scaled)
+    x <- c(x, min.val, max.val)
+    y <- c(y, min.lt, max.lt)
+    beta <- c(beta, lb, lb)
+    varName <- c(varName, var, var)
+  }
+}
+
+plot.data <- as.data.frame(cbind(x,y,beta,varName))
+plot.data <- data.frame(lapply(plot.data, type.convert))
+
+ggplot(data=plot.data) + 
+  facet_wrap(vars(varName), nrow=2,ncol=3, scales = "free_x", switch = "x") + 
+  geom_line(aes(x=x, y=y, col=beta, group=beta)) + 
+  scale_colour_gradientn(colours=c("#ff0800", "#e6e817", "#09f623")) +
+  xlab("Variable") + 
+  ylab("Linear Term") +
+  theme_linedraw()
+
+ggsave('../../figures/modeling/MLE_Ridge_Full_LTs.png', width=7, height=4)
+
+plot.data %>% filter(varName == "mu") %>%
+ggplot() +
+  geom_line(aes(x=x, y=y, col=beta, group=beta)) + 
+  scale_colour_gradientn(colours=c("#ff0800", "#e6e817", "#09f623")) +
+  xlab(expr(mu)) + 
+  ylab("Linear Term") +
+  theme_linedraw()
+ggsave('../../figures/modeling/MLE_Ridge_Full_MuEffect.png', width=3, height=2)
+
+
+`beta.min <- -3*stds["log.beta"] + means["log.beta"]
+beta.max <- 1*stds["log.beta"] + means["log.beta"]
+min.int <- coefs["(Intercept)"] + beta.min*coefs["log.beta"]
+max.int <- coefs["(Intercept)"] + beta.max*coefs["log.beta"]
+
+x <- c(-3,1)
+y <- c(min.int,max.int)
+plot.data <- as.data.frame(cbind(x,y))
+plot.data <- data.frame(lapply(plot.data, type.convert))
+ggplot(data=plot.data) + 
+  geom_line(aes(x=x, y=y)) + 
+  xlab(expr(beta)) + 
+  ylab("Intercept") +
+  theme_linedraw()
+ggsave('../../figures/modeling/MLE_Ridge_Full_Intercept.png', width=3, height=2)
+```
+
+```{r}
+val.mse <- ridge.mle.fit$cvm[index.1se]
+cat("Validation RMSE: ", sqrt(val.mse), "\n\n")
+
+yp = predict(ridge.mle.fit, newx=trn)
+rmse <- rmse(ytr, yp, w=wt)
+cat("Train RMSE: ", rmse, "\n")
+r2 <- r_squared(ytr, yp, w=wt)
+cat("Train R2: " , r2)
+```
+
+```{r}
+corr.plot <- data.frame(ytr, yp, wt)
+corr.plot$ytr <- 10**corr.plot$ytr
+corr.plot$lambda.1se <- 10**corr.plot$lambda.1se
+colnames(corr.plot) <- c("True", "Predicted", "Weight")
+
+ggplot(data=corr.plot) + 
+  geom_point(aes(x=True,y=Predicted, size=Weight, alpha=Weight), col='dodgerblue3') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/MLE_Ridge_Full_CorrReg.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted, weight=Weight), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/MLE_Ridge_Full_CorrDens.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=-8, y=0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  xlim(-9,1) +
+  ylim(-9,1) +
+  theme_linedraw() +
+  coord_fixed()
+```
+
+
+# MLE Lasso Full
+
+## Entrenamiento
+```{r}
+#trn <- trn %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) 
+#idx <- complete.cases(trn)
+#trn <- trn[idx, ] %>% 
+#  cbind(model.matrix(~ .:log.beta, data=trn)[,-c(1,2)])
+#trn <- as.matrix(trn)
+
+#ytr <- ytr[idx]
+#wt <- wt[idx]
+
+#lasso.mle.fit <- cv.glmnet(trn, ytr, weights=wt, nfolds=5, alpha=1, standarize=F, trace.it=1)
+#save(lasso.mle.fit, file = "../../models/BP_MEAS_linear_lasso_mle_full_CV.RData")
+```
+
+```{r}
+load("../../models/BP_MEAS_linear_lasso_mle_full_CV.RData")
+```
+
+
+## Resultados CV
+
+```{r}
+cv.results <- data.frame(lasso.mle.fit$lambda, lasso.mle.fit$cvm, lasso.mle.fit$cvsd, lasso.mle.fit$nzero, lasso.mle.fit$glmnet.fit$a0)
+colnames(cv.results) <- c("lambda", "MSE", "std", "NZero", "Intercept")
+coefs <- t(lasso.mle.fit$glmnet.fit$beta)
+coefs <- as.data.frame(as.matrix(coefs))
+cv.results <- cbind(cv.results, coefs)
+```
+
+```{r}
+print(lasso.mle.fit)
+index.min = 100
+index.1se = 64
+```
+
+```{r}
+ggplot(data=cv.results) + 
+  geom_errorbar(aes(x=lambda, ymin=MSE-std, ymax=MSE+std), col="black") +
+  geom_point(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_line(aes(x=lambda, y=MSE), col="dodgerblue3") + 
+  geom_vline(aes(xintercept=lasso.mle.fit$lambda.min), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=lasso.mle.fit$lambda.min, y=lasso.mle.fit$cvm[index.min]), col="red") + 
+  geom_hline(aes(yintercept=lasso.mle.fit$cvm[index.min]+lasso.mle.fit$cvsd[index.min]), col="red", linetype="dashed") +
+  annotate("text", x = lasso.mle.fit$lambda.min, y=-Inf, label="I\n0.000169", col="red", lineheight = .8, vjust = .8) +
+  geom_vline(aes(xintercept=lasso.mle.fit$lambda.1se), col='darkgrey', linetype='dashed') +
+  geom_point(aes(x=lasso.mle.fit$lambda.1se, y=lasso.mle.fit$cvm[index.1se]), col="red") + 
+  annotate("text", x = lasso.mle.fit$lambda.1se, y=-Inf, label="I\n0.0048", col="red", lineheight = .8, vjust = .8) +
+  scale_x_log10() + 
+  xlab(expression(lambda)) +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/MLE_Lasso_Full_CV.png', width=6, height=4)
+```
+
+```{r}
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Variables", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Coefficients, col=Variables)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/MLE_Lasso_Full_CoefPath.png', width=6, height=4)
+
+cv.results %>% 
+  select(lambda, contains(":")) %>%
+  pivot_longer(!lambda, names_to="Interactions", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=lambda, y=Coefficients, col=Interactions)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab(expression(lambda)) +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/MLE_Lasso_Full_InteractPath.png', width=6, height=4)
+```
+
+```{r}
+cv.results %>% 
+  select(MSE, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!MSE, names_to="Variables", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=MSE, y=Coefficients, col=Variables)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab("MSE") +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/MLE_Lasso_Full_CoefPathError.png', width=6, height=4)
+
+cv.results %>% 
+  select(MSE, contains(":")) %>%
+  pivot_longer(!MSE, names_to="Interactions", values_to="Coefficients") %>%
+  ggplot() + 
+  geom_line(aes(x=MSE, y=Coefficients, col=Interactions)) +
+  geom_hline(aes(yintercept=0), col="black", linetype="dashed") +
+  scale_x_log10() +
+  xlab("MSE") +
+  ylab("Coefficients") +
+  theme_linedraw() +
+  coord_cartesian(clip = "off")
+
+ggsave('../../figures/modeling/MLE_Lasso_Full_InteractPathError.png', width=6, height=4)
+```
+
+## Análisis modelo
+```{r}
+print('Coefficients of GLM lasso Full Interactions: ')
+coef(lasso.mle.fit)
+
+cv.results %>% 
+  select(lambda, log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  pivot_longer(!lambda, names_to="Variables", values_to="Coefficients") %>% 
+  filter(lambda == lasso.mle.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Variables, y=Coefficients, fill=Variables), col='black') + 
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/MLE_Lasso_Full_Coefs.png', width=5, height=4)
+
+cv.results %>% 
+  select(lambda, contains(":")) %>%
+  pivot_longer(!lambda, names_to="Interactions", values_to="Coefficients") %>% 
+  filter(lambda == lasso.mle.fit$lambda.1se) %>%
+ggplot() + 
+  geom_col(aes(x=Interactions, y=Coefficients, fill=Interactions), col='black') + 
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/MLE_Lasso_Full_Interacts.png', width=5, height=4)
+```
+
+```{r}
+max.coefs <- rep(max(cv.results %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>% abs), 7)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+min.coefs <- rep(0, 7)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- c("log.beta", "log.Size", "Lambda1", "Lambda2", "mu", "Gr_Medio", "H")
+
+png(filename='../../figures/modeling/MLE_Lasso_Full_AbsCoefs.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(cv.results %>% 
+  filter(lambda == lasso.mle.fit$lambda.1se) %>%
+  select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H) %>%
+  lapply(abs) %>% as.data.frame) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.4,0.1), title="Abs(Coefs)")
+dev.off()
+
+this.df <- cv.results %>% 
+  filter(lambda == lasso.mle.fit$lambda.1se) %>%
+  select(contains(":")) 
+this.colnames <- colnames(this.df)
+this.df <- this.df %>%
+  lapply(abs) %>% as.data.frame()
+colnames(this.df) <- this.colnames
+max.coefs <- rep(max(cv.results %>% select(contains(":")) %>% abs), 6)
+max.coefs <- data.frame(as.list(max.coefs))
+colnames(max.coefs) <- this.colnames
+min.coefs <- rep(0, 6)
+min.coefs <- data.frame(as.list(min.coefs))
+colnames(min.coefs) <- this.colnames
+
+png(filename='../../figures/modeling/MLE_Lasso_Full_AbsInteracts.png', width=5, height=4, units='in', res=100)
+max.coefs %>%
+  rbind(min.coefs) %>%
+  rbind(this.df) %>%
+radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,0.05,0.01), title="Abs(Coefs)")
+dev.off()
+```
+
+```{r}
+val.mse <- lasso.mle.fit$cvm[index.1se]
+cat("Validation RMSE: ", sqrt(val.mse), "\n\n")
+
+yp = predict(lasso.mle.fit, newx=trn)
+rmse <- rmse(ytr, yp, w=wt)
+cat("Train RMSE: ", rmse, "\n")
+r2 <- r_squared(ytr, yp, w=wt)
+cat("Train R2: " , r2)
+```
+
+```{r}
+corr.plot <- data.frame(ytr, yp, wt)
+corr.plot$ytr <- 10**corr.plot$ytr
+corr.plot$lambda.1se <- 10**corr.plot$lambda.1se
+colnames(corr.plot) <- c("True", "Predicted", "Weight")
+
+ggplot(data=corr.plot) + 
+  geom_point(aes(x=True,y=Predicted, size=Weight, alpha=Weight), col='dodgerblue3') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/MLE_Lasso_Full_CorrReg.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted, weight=Weight), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/MLE_Lasso_Full_CorrDens.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=-8, y=0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  xlim(-9,1) +
+  ylim(-9,1) +
+  theme_linedraw() +
+  coord_fixed()
+```
+
+
+
+
+# GAM Dense Full
+
+## Entrenamiento
+```{r}
+
+trn <- read.csv('../../data/Networld_N200_TMax10000/TRN_MEAS_BP.csv')
+colnames(trn) <- c("NRed","Ab","beta","Size","Lambda1","Lambda2","mu","Gr_Medio","H","AI",
+                   "log.Size","log.Lambda1","log.Lambda2","log.mu","log.Gr_Medio","log.H","log.AI",
+                   "log.Ab","log.beta")
+nred <- trn$NRed
+ytr <- trn$log.Ab
+
+trn <- trn %>% select(-Ab, -log.Ab, -NRed)
+
+wt <- read.csv('../../data/Networld_N200_TMax10000/TRN_sample_weights_BP.csv', header = FALSE)
+wt <- wt$V1
+
+#trn <- scale(trn)
+#means <- attr(trn, "scaled:center")
+#stds <- attr(trn, "scaled:scale")
+#trn <- as.data.frame(trn)
+
+trn <- trn %>% select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H)
+trn$log.Ab <- ytr
+idx <- complete.cases(trn)
+trn <- trn[idx,  ]
+wt <- wt[idx]
+ytr <- ytr[idx]
+
+cv.folds <- read.csv('../../data/Networld_N200_TMax10000/TRN_CV_Folds_BP.csv')
+
+#gam.dense.fit <- gam(log.Ab ~ s(log.beta) + s(log.Size) + s(Lambda1) + s(Lambda2) + s(mu) + s(Gr_Medio) + s(H), 
+#               data = trn, weights = wt, method = 'GCV.Cp', select = F)
+#save(gam.dense.fit, file = "../../models/BP_MEAS_gam_dense_full.RData")
+```
+
+```{r}
+load(file="../../models/BP_MEAS_gam_dense_full.RData")
+```
+
+## Análisis del modelo
+
+```{r}
+summary(gam.dense.fit)
+```
+
+```{r}
+sm <- smooth_estimates(gam.dense.fit) %>%
+  add_confint() 
+coal <- sm %>%
+  select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H)
+sm$smooth.term <- coalesce(!!!coal)
+
+ggplot(data=sm, aes(x=smooth.term, y=est, col=smooth)) +
+  geom_line() + 
+  facet_wrap(vars(smooth), nrow=2, ncol=4, scales = "free", switch="x") +
+  xlab("Variable") +
+  ylab("Smooth Term") +
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/GAM_Dense_Full_Smooths.png', width=7, height=4)
+
+ggplot(data=sm, aes(x=smooth.term, y=est, col=smooth)) +
+  geom_line() + 
+  facet_wrap(vars(smooth), nrow=2, ncol=4, scales="free_x", switch="x") +
+  xlab("Variable") +
+  ylab("Smooth Term") +
+  theme_linedraw() 
+
+ggsave('../../figures/modeling/GAM_Dense_Full_Smooths2.png', width=7, height=4)
+```
+
+```{r}
+coef.relevance <- sm %>% group_by(smooth) %>% summarise(relevance=sd(est))
+coef.relevance$max <- rep(6, 7)
+coef.relevance$min <- rep(0, 7)
+columns <- unlist(coef.relevance[,1], use.names=F)
+coef.relevance <- data.frame(t(coef.relevance[,-1]))
+colnames(coef.relevance) <- columns
+coef.relevance <- coef.relevance[c(2,3,1),]
+
+png(filename='../../figures/modeling/GAM_Dense_Full_StdSmooth.png', width=5, height=4, units='in', res=100)
+coef.relevance %>%
+  radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,6,1.5), title="Std(Smooth Terms)")
+dev.off()    
+```
+
+```{r}
+rmse.vec = c()
+for (fold in colnames(cv.folds)){
+  cat("Calculating ", fold, "\n")
+  val.idx <- na.omit(cv.folds[, fold])
+  fit <- trn[-val.idx, ]
+  fit.wt <- wt[-val.idx]
+  val <- trn[val.idx, ]
+  val.wt <- wt[val.idx]
+  gam.cv.fit <- gam(log.Ab ~ s(log.beta) + s(log.Size) + s(Lambda1) + s(Lambda2) + s(mu) + s(Gr_Medio) + s(H), 
+               data = fit, weights = fit.wt, method = 'GCV.Cp', select = F)
+  yp <- predict(gam.cv.fit, newdata=val)
+  rmse.vec <- c(rmse.vec, rmse(val$log.Ab, yp, w=val.wt))
+}
+```
+
+```{r}
+cat("Validation RMSE: ", mean(rmse.vec)," (Std: ", sd(rmse.vec), ")\n\n")
+
+rmse <- rmse(trn$log.Ab, gam.dense.fit$fitted.values, w=wt)
+cat("Train RMSE: ", rmse, "\n")
+r2 <- r_squared(trn$log.Ab, gam.dense.fit$fitted.values, w=wt)
+cat("Train R2: " , r2)
+```
+
+```{r}
+corr.plot <- data.frame(trn$log.Ab, gam.dense.fit$fitted.values, wt)
+corr.plot$trn.log.Ab <- 10**corr.plot$trn.log.Ab
+corr.plot$gam.dense.fit.fitted.values <- 10**corr.plot$gam.dense.fit.fitted.values
+colnames(corr.plot) <- c("True", "Predicted", "Weight")
+
+ggplot(data=corr.plot) + 
+  geom_point(aes(x=True,y=Predicted, size=Weight, alpha=Weight), col='dodgerblue3') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GAM_Dense_Full_CorrReg.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted, weight=Weight), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+ggsave('../../figures/modeling/GAM_Dense_Full_CorrDens.png', width=5, height=4)
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  annotate(label=paste('R2:', as.character(round(r2,3))), x=-8, y=0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  xlim(-9,1) +
+  ylim(-9,1) +
+  theme_linedraw() +
+  coord_fixed()
+```
+
+# MAM Dense Full
+
+## Entrenamiento
+```{r}
+
+trn <- read.csv('../../data/Networld_N200_TMax10000/TRN_MEAS_BP.csv')
+colnames(trn) <- c("NRed","Ab","beta","Size","Lambda1","Lambda2","mu","Gr_Medio","H","AI",
+                   "log.Size","log.Lambda1","log.Lambda2","log.mu","log.Gr_Medio","log.H","log.AI",
+                   "log.Ab","log.beta")
+nred <- trn$NRed
+ytr <- trn$log.Ab
+beta <- trn$log.beta
+
+trn <- trn %>% select(-Ab, -log.Ab, -NRed, -beta, -log.beta)
+
+wt <- read.csv('../../data/Networld_N200_TMax10000/TRN_sample_weights_BP.csv', header = FALSE)
+wt <- wt$V1
+
+trn <- scale(trn)
+means <- attr(trn, "scaled:center")
+stds <- attr(trn, "scaled:scale")
+trn <- as.data.frame(trn)
+
+trn <- trn %>% select(log.Size, Lambda1, Lambda2, mu, Gr_Medio, H)
+trn$log.Ab <- ytr
+trn$log.beta <- beta
+idx <- complete.cases(trn)
+trn <- trn[idx,  ]
+wt <- wt[idx]
+ytr <- ytr[idx]
+
+cv.folds <- read.csv('../../data/Networld_N200_TMax10000/TRN_CV_Folds_BP.csv')
+
+#mam.dense.fit <- gam(log.Ab ~ s(log.beta) + s(log.beta, by=log.Size) + s(log.beta, by=Lambda1) + s(log.beta, by=Lambda2) + s(log.beta, by=mu) + s(log.beta, by=Gr_Medio) + s(log.beta, by=H), 
+#               data = trn, weights = wt, method = 'GCV.Cp', select = F)
+#save(mam.dense.fit, file = "../../models/BP_MEAS_mam_dense_full.RData")
+```
+
+```{r}
+load(file="../../models/BP_MEAS_mam_dense_full.RData")
+```
+
+## Análisis del modelo
+
+```{r}
+summary(mam.dense.fit)
+```
+
+```{r}
+sm <- smooth_estimates(mam.dense.fit) %>%
+  add_confint() 
+coal <- sm %>%
+  select(log.beta, log.Size, Lambda1, Lambda2, mu, Gr_Medio, H)
+sm$smooth.term <- coalesce(!!!coal)
+
+ggplot(data=sm, aes(x=smooth.term, y=est, col=smooth)) +
+  geom_line() + 
+  facet_wrap(vars(smooth), nrow=2, ncol=4, scales = "free") +
+  xlab("Variable") +
+  ylab("Smooth Term") +
+  theme_linedraw()
+
+ggsave('../../figures/modeling/MAM_Dense_Full_Smooths.png', width=7, height=4)
+
+ggplot(data=sm, aes(x=smooth.term, y=est, col=smooth)) +
+  geom_line() + 
+  facet_wrap(vars(smooth), nrow=2, ncol=4, scales="free_x") +
+  xlab("Variable") +
+  ylab("Smooth Term") +
+  theme_linedraw()
+
+ggsave('../../figures/modeling/MAM_Dense_Full_Smooths2.png', width=7, height=4)
+```
+
+```{r}
+coef.relevance <- sm %>% group_by(smooth) %>% summarise(relevance=sd(est))
+coef.relevance$max <- rep(6, 7)
+coef.relevance$min <- rep(0, 7)
+columns <- unlist(coef.relevance[,1], use.names=F)
+coef.relevance <- data.frame(t(coef.relevance[,-1]))
+colnames(coef.relevance) <- columns
+coef.relevance <- coef.relevance[c(2,3,1),]
+
+png(filename='../../figures/modeling/GAM_Dense_Full_StdSmooth.png', width=5, height=4, units='in', res=100)
+coef.relevance %>%
+  radarchart(axistype=1, pcol="dodgerblue3", pfcol = scales::alpha("dodgerblue", 0.5), plwd=2, plty=1, cglcol="black", cglty = 1, cglwd = 0.8, axislabcol = "black", caxislabels = seq(0,6,1.5), title="Std(Smooth Terms)")
+dev.off()    
+```
+
+```{r}
+rmse.vec = c()
+for (fold in colnames(cv.folds)){
+  cat("Calculating ", fold, "\n")
+  val.idx <- na.omit(cv.folds[, fold])
+  fit <- trn[-val.idx, ]
+  fit.wt <- wt[-val.idx]
+  val <- trn[val.idx, ]
+  val.wt <- wt[val.idx]
+  gam.cv.fit <- gam(log.Ab ~ s(log.beta) + s(log.Size) + s(Lambda1) + s(Lambda2) + s(mu) + s(Gr_Medio) + s(H), 
+               data = fit, weights = fit.wt, method = 'GCV.Cp', select = F)
+  yp <- predict(gam.cv.fit, newdata=val)
+  rmse.vec <- c(rmse.vec, rmse(val$log.Ab, yp, w=val.wt))
+}
+```
+
+```{r}
+cat("Validation RMSE: ", mean(rmse.vec)," (Std: ", sd(rmse.vec), ")\n\n")
+
+rmse <- rmse(trn$log.Ab, gam.dense.fit$fitted.values, w=wt)
+cat("Train RMSE: ", rmse, "\n")
+r2 <- r_squared(trn$log.Ab, gam.dense.fit$fitted.values, w=wt)
+cat("Train R2: " , r2)
+```
+
+```{r}
+corr.plot <- data.frame(trn$log.Ab, mam.dense.fit$fitted.values, wt)
+corr.plot$trn.log.Ab <- 10**corr.plot$trn.log.Ab
+corr.plot$mam.dense.fit.fitted.values <- 10**corr.plot$mam.dense.fit.fitted.values
+colnames(corr.plot) <- c("True", "Predicted", "Weight")
+
+ggplot(data=corr.plot) + 
+  geom_point(aes(x=True,y=Predicted, size=Weight, alpha=Weight), col='dodgerblue3') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  #annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+
+ggplot(data=corr.plot) + 
+  geom_bin2d(aes(x=True,y=Predicted, weight=Weight), col='black') +
+  geom_smooth(aes(x=True,y=Predicted, weight=Weight), method='lm', col='red') +
+  #annotate(label=paste('R2:', as.character(round(r2,3))), x=10**-8, y=10**0, geom="text") +
+  scale_fill_gradient(low="white", high="red") +
+  xlab("True Ab") +
+  ylab("Predicted Ab") +
+  scale_x_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  scale_y_log10(labels=label_log(), limits=c(10**-9,10**1)) + 
+  theme_linedraw() +
+  coord_fixed()
+
+```
+
+

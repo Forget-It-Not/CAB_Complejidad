@@ -35,7 +35,7 @@ P = zeros(1,N);
 counter = 1; %Counter of time steps
 
 %% Main Loop (Union & Partition of Networks)
-while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR UNA RED COMPLETA
+while counter <= T_max % && num_nets > 1
     % counter <= T_max ~ within simulation max time
     % P = equal(ones(N)) ~ no new union is possible
 
@@ -94,7 +94,7 @@ while counter <= T_max %&& isequal(P,ones(N))==0  // PARA QUE PARE AL ALCANZAR U
     net_mats = net_mats_new;
 
     num_nets = length(net_ids);
-    P = eye(num_nets);
+    P = zeros(1,num_nets);
     counter = counter + 1;
 
     next_block = [ones(num_nets,1)*counter,net_ids(:),ones(num_nets,1)];

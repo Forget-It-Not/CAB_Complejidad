@@ -3,3 +3,4 @@
 *.csv
 code/ignorethis.ipynb
 *.zip
+.Rproj.user
