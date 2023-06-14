@@ -4,7 +4,7 @@ network_pool = [1];
 
 curr_layer = 1;
 
-layer_path = '../../data/layer_break_metadata.mat';
+layer_path = '../../data/layer_aux_metadata.mat';
 load(layer_path)
 
 metadata_path = '../../data/networld_metadata.mat';
@@ -170,11 +170,17 @@ while True
 
     disp('Saving data')
     tic
-    save(layer_path, 'Networks_Layer', 'curr_layer', 'layer_unions', ...
-        'layer_paths')
+    save(layer_path, 'network_pool', 'curr_layer', 'layer_unions', ...
+        'layer_paths', 'unions', 'partitions')
 
     save(metadata_path, 'Networks_Key', 'Networks_Unique', ...
         'Networks_Measures')
     toc
     % Save data for each loop
 end
+
+partitions = array2table(partitions, 'VariableNames', {'NRed','Prod','Layer'});
+unions = array2table(unions, 'VariableNames', {'NRed','R1','R2','Layer'});
+
+writetable(partitions, '../../data/partition_metadata.mat')
+writetable(unions, '../../data/union_metadata.mat')
