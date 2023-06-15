@@ -1,11 +1,11 @@
 layer_paths = {{[1]}};
 layer_unions = {};
-Networks_Layer = [1,0];
+network_pool = [1];
 
 curr_layer = 1;
 
-load(layer_path)layer_path = '../../data/layer_aux_metadata.mat';
-
+layer_path = '../../data/layer_aux_metadata.mat';
+load(layer_path)
 
 metadata_path = '../../data/networld_metadata.mat';
 load(metadata_path)
@@ -115,9 +115,8 @@ while True
         for j=1:length(partition_ids)
             new_id = partition_ids(j);
             present = false;
-            [ngen, ~] = size(Networks_Layer);
-            for k=1:ngen
-                if Networks_Layer(k,1) == new_id
+            for k=1:length(network_pool)
+                if network_pool(k) == new_id
                     present=true;
                     break
                 end
