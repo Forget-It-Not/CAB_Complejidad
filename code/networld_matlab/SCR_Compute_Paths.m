@@ -1,11 +1,11 @@
 layer_paths = {{[1]}};
 layer_unions = {};
-network_pool = [1];
+Networks_Layer = [1,0];
 
 curr_layer = 1;
 
-layer_path = '../../data/layer_aux_metadata.mat';
-load(layer_path)
+load(layer_path)layer_path = '../../data/layer_aux_metadata.mat';
+
 
 metadata_path = '../../data/networld_metadata.mat';
 load(metadata_path)
@@ -115,8 +115,9 @@ while True
         for j=1:length(partition_ids)
             new_id = partition_ids(j);
             present = false;
-            for k=1:length(network_pool)
-                if network_pool(k) == new_id
+            [ngen, ~] = size(Networks_Layer);
+            for k=1:ngen
+                if Networks_Layer(k,1) == new_id
                     present=true;
                     break
                 end
@@ -182,5 +183,5 @@ end
 partitions = array2table(partitions, 'VariableNames', {'NRed','Prod','Layer'});
 unions = array2table(unions, 'VariableNames', {'NRed','R1','R2','Layer'});
 
-writetable(partitions, '../../data/partition_metadata.mat')
-writetable(unions, '../../data/union_metadata.mat')
+writetable(partitions, '../../data/partition_metadata.csv')
+writetable(unions, '../../data/union_metadata.csv')
