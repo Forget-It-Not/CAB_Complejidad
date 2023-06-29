@@ -90,6 +90,7 @@ path_data['NP_U'].fillna(0, inplace=True)
 # happen multiple times
 
 part_dict = {k:list(table['Prod']) for k, table in partitions.groupby('NRed')}
+part_dict[1] = []
 union_dict = {k:int(table['NRed']) for k, table in unions.groupby(['R1','R2'])}
 
 curr_layer = 1
