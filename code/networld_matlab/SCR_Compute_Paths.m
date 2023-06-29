@@ -143,7 +143,8 @@ while True
         B_mat = AUX_Edgelist2Adj(Networks_Unique{B_id});
         [T_id, T_mat, Networks_Key, Networks_Unique, Networks_Measures] = ...
             MP_Network_Union(A_mat, B_mat, 1, Networks_Key, Networks_Unique, Networks_Measures);
-        
+        T_id
+        T_mat
         present = false;
         for k=1:length(network_pool)
             if network_pool(k) == T_id

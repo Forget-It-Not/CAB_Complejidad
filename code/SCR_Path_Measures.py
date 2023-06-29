@@ -45,12 +45,14 @@ path_data = path_data.merge(lgd_unions, on='NRed', how='left')
 # Length of the shortest path
 path_data.fillna(np.inf, inplace=True)
 path_data['L(SP_D)'] = path_data[['L(SP_Part)','L(SP_Union)']].min(axis=1)
+path_data.loc[path_data['NRed']==1, 'L(SP_D)'] = 0
 
 # Length of shortest path and number of paths without degradation reactions
 df = {'NRed':[1], 'L(SP_U)':[0], 'NP_U': [1]}
 layer = 1
 
 while True:
+    print('Current layer:', layer)
     # Reenact the growth process following only union reactions that include
     # the networks that have appeared (discard those arising from degradation)
     unions_layer = unions.loc[unions['Layer']==layer]
@@ -61,25 +63,26 @@ while True:
                                     (unions_layer['R2'].isin(df['NRed']))]
     for i, row in unions_layer.iterrows():
         nred = row['NRed']
-        R1_npath = df['NPaths'][df['NRed'].index(row['R1'])]
-        R2_npath = df['NPaths'][df['NRed'].index(row['R2'])]
+        R1_npath = df['NP_U'][df['NRed'].index(row['R1'])]
+        R2_npath = df['NP_U'][df['NRed'].index(row['R2'])]
         # Since the process can only go forward, the nº of paths is the sum over
         # all reactions of the product of the nº of paths of each reactive
         react_npaths = R1_npath * R2_npath
         # The first time the network is found, the layer is the minimum length
         if nred not in df['NRed']:
             df['NRed'].append(nred)
-            df['L(GU)'].append(layer)
-            df['NPaths'].append(react_npaths)
+            df['L(SP_U)'].append(layer)
+            df['NP_U'].append(react_npaths)
         else:
             idx = df['NRed'].index(nred)
-            df['NPaths'][idx] += react_npaths
+            df['NP_U'][idx] += react_npaths
 
     layer += 1
 
 df = pd.DataFrame(df)
 path_data = path_data.merge(df, on='NRed', how='left')
-path_data.fillna(np.inf, inplace=True)
+path_data['L(SP_U)'].fillna(np.inf, inplace=True)
+path_data['NP_U'].fillna(0, inplace=True)
 
 # Number of paths with degradation reactions
 
@@ -93,9 +96,10 @@ curr_layer = 1
 npaths = {0:{1:1}}
 gen_networks = {1}
 
-while curr_layer < 6:
-    print(curr_layer)
-    npaths[curr_layer] = {}
+while curr_layer < 8:
+    print('Current layer:', curr_layer)
+    if curr_layer not in npaths.keys():
+        npaths[curr_layer] = {}
     new_gen_networks = set()
     for head in npaths[curr_layer-1].keys():
         for part_prod in part_dict[head]:
@@ -152,7 +156,7 @@ for net in gen_networks:
 
 df = pd.DataFrame({'NRed':gen_networks, 'NP_D_rseq': num_paths})
 path_data = path_data.merge(df, on='NRed', how='left')
-path_data.fillna(0, inplace=True)
+path_data['NP_D_rseq'].fillna(0, inplace=True)
 
 # Version 2: path defined as the set of reactions involved, without repetitions
 
@@ -165,9 +169,9 @@ class Path:
     def __repr__(self):
         return repr(self.reacts) + " // " + str(self.tail)
     
-unions.reset_index(names='NReact', inplace=True)
+unions = unions.rename_axis('NReact').reset_index()
 nunions = len(unions)
-partitions.reset_index(names='NReact', inplace=True)
+partitions = partitions.rename_axis('NReact').reset_index()
 partitions['NReact'] += nunions
 
 curr_layer = 1
@@ -175,6 +179,7 @@ layer_paths = {0:[Path({1:-1}, 1)]}
 
 while True:
 
+    print('Current layer:', curr_layer)
     empty_reacts = True
 
     for i, path in enumerate(layer_paths[curr_layer-1]):
@@ -265,7 +270,8 @@ while True:
         break
 
 num_paths = {}
-for paths in layer_paths.values():
+for layer in range(8):
+    paths = layer_paths[layer]
     for path in paths:
         tail = path.tail
         if tail not in num_paths.keys():
@@ -275,3 +281,8 @@ for paths in layer_paths.values():
 df = pd.DataFrame({'NRed':num_paths.keys(), 'NP_D_rset':num_paths.values()})
 path_data = path_data.merge(df, on='NRed', how='left')
 path_data.fillna(0, inplace=True)
+
+
+path_data.to_csv('../data/path_metadata.csv', index=False)
+
+path_data = pd.read_csv('../data/path_metadata.csv')
